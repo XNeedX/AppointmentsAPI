@@ -4,5 +4,7 @@ namespace AppointmentsAPI.Application.Abstractions;
 
 public interface IServiceSyncService
 {
-    Task SyncServiceAsync(SyncServiceDTO dto);
+    Task CreateServiceAsync(SyncServiceDTO dto);
+    Task UpdateServiceAsync(SyncServiceDTO dto);
+    Task UpdateStatusServiceAsync(SyncStatusUpdateDTO dto);
 }

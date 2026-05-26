@@ -13,7 +13,7 @@ public class ServiceSyncService : IServiceSyncService
         _serviceRepository = serviceRepository;
     }
 
-    public async Task SyncServiceAsync(SyncServiceDTO dto)
+    public async Task CreateServiceAsync(SyncServiceDTO dto)
     {
         var service = new Service
         {
@@ -23,5 +23,29 @@ public class ServiceSyncService : IServiceSyncService
 
         await _serviceRepository.AddAsync(service);
         await _serviceRepository.SaveChangesAsync();
+    }
+
+    public async Task UpdateServiceAsync(SyncServiceDTO dto)
+    {
+        var service = await _serviceRepository.GetByIdAsync(dto.Id);
+
+        if (service != null)
+        {
+            service.Name = dto.Name;
+
+            await _serviceRepository.SaveChangesAsync();
+        }
+    }
+
+    public async Task UpdateStatusServiceAsync(SyncStatusUpdateDTO dto)
+    {
+        var service = await _serviceRepository.GetByIdAsync(dto.Id);
+
+        if (service != null)
+        {
+            service.Status = dto.Status;
+
+            await _serviceRepository.SaveChangesAsync();
+        }
     }
 }

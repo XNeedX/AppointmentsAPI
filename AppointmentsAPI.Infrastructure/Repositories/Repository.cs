@@ -35,7 +35,9 @@ internal class Repository<T, K> : IRepository<T, K>
 
     public async Task<IEnumerable<T>> GetAllAsync(CancellationToken cancellationToken = default) => await _dbset.AsNoTracking().ToListAsync();
 
-    public Task<T?> GetByIdAsync(K id, CancellationToken cancellationToken = default) => _dbset.FindAsync(id).AsTask();
+    public async Task<T?> GetByIdAsync(K id, CancellationToken cancellationToken = default) => await _dbset.FindAsync(id).AsTask();
 
-    public Task SaveChangesAsync(CancellationToken cancellationToken = default) => _dbContext.SaveChangesAsync();
+    public async Task SaveChangesAsync(CancellationToken cancellationToken = default) => await _dbContext.SaveChangesAsync();
+
+    public async Task Delete(T entity, CancellationToken cancellationToken = default) => _dbset.Remove(entity);
 }

@@ -1,7 +1,7 @@
 ﻿using AppointmentsAPI.Application.Abstractions;
-using AppointmentsAPI.Application.Consumers;
 using AppointmentsAPI.Application.SyncServices;
 using AppointmentsAPI.Domain.Models;
+using AppointmentsAPI.Infrastructure.Consumers.Services;
 using AppointmentsAPI.Infrastructure.Data;
 using AppointmentsAPI.Infrastructure.Repositories;
 using FluentValidation;
@@ -9,6 +9,7 @@ using MassTransit;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using System.Reflection;
 
 namespace AppointmentsAPI.Infrastructure.Extensions;
 
@@ -23,7 +24,7 @@ public static class DependencyInjection
         {
             busConfigurator.SetKebabCaseEndpointNameFormatter();
 
-            busConfigurator.AddConsumer<ServiceCreatedConsumer>();
+            busConfigurator.AddConsumers(Assembly.GetExecutingAssembly());
 
             busConfigurator.UsingRabbitMq((context, cfg) =>
             {
@@ -37,7 +38,12 @@ public static class DependencyInjection
             });
         });
 
-        services.AddScoped<IRepository<Service, Guid>, Repository<Service, Guid>>();
+        services.AddScoped(typeof(IRepository<,>), typeof(Repository<,>));
+        services.AddScoped<IDoctorSyncService, DoctorSyncService>();
+        services.AddScoped<IPatientSyncService, PatientSyncService>();
+        services.AddScoped<IReceptionistSyncService, ReceptionistSyncService>();
+        services.AddScoped<IServiceSyncService, ServiceSyncService>();
+        services.AddScoped<IOfficeSyncService, OfficeSyncService>();
 
         return services;
     }
