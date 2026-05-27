@@ -15,9 +15,12 @@ public class OfficeSyncService : IOfficeSyncService
 
     public async Task CreateOfficeAsync(SyncOfficeDTO dto)
     {
+        var existing = await _officeRepository.GetByIdAsync(dto.Id);
+        if (existing != null) return;
+
         var office = new Office
         {
-            Id = Guid.NewGuid(),
+            Id = dto.Id,
             Address = dto.Address
         };
 

@@ -15,6 +15,9 @@ public class ServiceSyncService : IServiceSyncService
 
     public async Task CreateServiceAsync(SyncServiceDTO dto)
     {
+        var existing = await _serviceRepository.GetByIdAsync(dto.Id);
+        if (existing != null) return;
+
         var service = new Service
         {
             Id = dto.Id,
