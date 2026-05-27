@@ -44,6 +44,7 @@ public static class DependencyInjection
         services.AddScoped<IReceptionistSyncService, ReceptionistSyncService>();
         services.AddScoped<IServiceSyncService, ServiceSyncService>();
         services.AddScoped<IOfficeSyncService, OfficeSyncService>();
+        services.AddScoped<ISpecializationSyncService, SpecializationSyncService>();
 
         return services;
     }

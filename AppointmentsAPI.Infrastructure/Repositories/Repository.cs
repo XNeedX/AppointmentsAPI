@@ -39,5 +39,5 @@ internal class Repository<T, K> : IRepository<T, K>
 
     public async Task SaveChangesAsync(CancellationToken cancellationToken = default) => await _dbContext.SaveChangesAsync();
 
-    public async Task Delete(T entity, CancellationToken cancellationToken = default) => _dbset.Remove(entity);
+    public void Delete(T entity, CancellationToken cancellationToken = default) => _dbset.Remove(entity);
 }
