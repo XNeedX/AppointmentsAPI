@@ -17,6 +17,7 @@ public class AppointmentsDbContext : DbContext
     public DbSet<Patient> Patients => Set<Patient>();
     public DbSet<Receptionist> Receptionists => Set<Receptionist>();
     public DbSet<Specialization> Specializations => Set<Specialization>();
+    public DbSet<AppointmentResult> AppointmentResults => Set<AppointmentResult>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

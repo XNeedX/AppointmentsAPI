@@ -9,4 +9,8 @@ public interface IAppointmentService
         CreateAppointmentDTO dto, 
         Guid patientId, 
         CancellationToken cancellationToken = default);
+    Task<Result> CreateAppointmentResultAsync(
+        Guid appointmentId, 
+        CreateAppointmentResultDTO dto, 
+        CancellationToken cancellationToken = default);
 }

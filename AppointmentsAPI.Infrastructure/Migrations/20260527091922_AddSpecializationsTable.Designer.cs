@@ -3,6 +3,7 @@ using System;
 using AppointmentsAPI.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace AppointmentsAPI.Infrastructure.Migrations
 {
     [DbContext(typeof(AppointmentsDbContext))]
-    partial class AppointmentsDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260527091922_AddSpecializationsTable")]
+    partial class AddSpecializationsTable
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -62,35 +65,6 @@ namespace AppointmentsAPI.Infrastructure.Migrations
                     b.HasIndex("ServiceId");
 
                     b.ToTable("Appointments", (string)null);
-                });
-
-            modelBuilder.Entity("AppointmentsAPI.Domain.Models.AppointmentResult", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
-
-                    b.Property<Guid>("AppointmentId")
-                        .HasColumnType("uuid");
-
-                    b.Property<string>("Complaints")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<string>("Conclusion")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<string>("Recommendations")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("AppointmentId")
-                        .IsUnique();
-
-                    b.ToTable("AppointmentResults", (string)null);
                 });
 
             modelBuilder.Entity("AppointmentsAPI.Domain.Models.Doctor", b =>
@@ -291,22 +265,6 @@ namespace AppointmentsAPI.Infrastructure.Migrations
                     b.Navigation("Receptionist");
 
                     b.Navigation("Service");
-                });
-
-            modelBuilder.Entity("AppointmentsAPI.Domain.Models.AppointmentResult", b =>
-                {
-                    b.HasOne("AppointmentsAPI.Domain.Models.Appointment", "Appointment")
-                        .WithOne("Result")
-                        .HasForeignKey("AppointmentsAPI.Domain.Models.AppointmentResult", "AppointmentId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Appointment");
-                });
-
-            modelBuilder.Entity("AppointmentsAPI.Domain.Models.Appointment", b =>
-                {
-                    b.Navigation("Result");
                 });
 #pragma warning restore 612, 618
         }

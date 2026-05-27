@@ -13,6 +13,7 @@ public class AppointmentService : IAppointmentService
     private readonly IRepository<Office, Guid> _officeRepository;
     private readonly IRepository<Patient, Guid> _patientRepository;
     private readonly IRepository<Service, Guid> _serviceRepository;
+    private readonly IRepository<AppointmentResult, Guid> _appointmentResultRepository;
 
     public AppointmentService(IAppointmentRepository appointmentRepository,
         IRepository<Doctor, Guid> doctorRepository,
@@ -27,7 +28,8 @@ public class AppointmentService : IAppointmentService
         _appointmentRepository = appointmentRepository;
     }
 
-    public async Task<Result> CreateAppointmentAsync(CreateAppointmentDTO dto, 
+    public async Task<Result> CreateAppointmentAsync(
+        CreateAppointmentDTO dto, 
         Guid patientId, 
         CancellationToken cancellationToken = default)
     {
@@ -63,6 +65,29 @@ public class AppointmentService : IAppointmentService
 
         return Result.Success();
     }
+    public async Task<Result> CreateAppointmentResultAsync(
+        Guid appointmentId, 
+        CreateAppointmentResultDTO dto, 
+        CancellationToken cancellationToken = default)
+    {
+        var appointment = await _appointmentRepository.GetByIdAsync(appointmentId, cancellationToken);
 
-       
+        if (appointment == null) return AppointmentErrors.NotFound; 
+
+        if (appointment.Result != null) return AppointmentErrors.ResultAlreadyExists;
+
+        var result = new AppointmentResult
+        {
+            Id = Guid.NewGuid(),
+            AppointmentId = appointmentId,
+            Complaints = dto.Complaints,
+            Conclusion = dto.Conclusion,
+            Recommendations = dto.Recommendations
+        };
+
+        await _appointmentResultRepository.AddAsync(result, cancellationToken);
+        await _appointmentResultRepository.SaveChangesAsync(cancellationToken);
+
+        return Result.Success();
+    }
 }

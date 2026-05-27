@@ -21,4 +21,5 @@ public class Appointment
 
     public DateTime Date { get; set; } = DateTime.UtcNow;
     public DateTime TimeSlot { get; set; }
+    public AppointmentResult? Result { get; set; }
 }

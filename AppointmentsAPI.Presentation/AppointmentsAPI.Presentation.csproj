@@ -23,10 +23,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Folder Include="Controllers\" />
-  </ItemGroup>
-
-  <ItemGroup>
     <ProjectReference Include="..\AppointmentsAPI.Domain\AppointmentsAPI.Domain.csproj" />
     <ProjectReference Include="..\AppointmentsAPI.Infrastructure\AppointmentsAPI.Infrastructure.csproj" />
     <ProjectReference Include="..\AppontmentsAPI.Application\AppointmentsAPI.Application.csproj" />
