@@ -8,4 +8,5 @@ public interface IAppointmentRepository
     Task AddAsync(Appointment appointment, CancellationToken cancellationToken = default);
     Task<IEnumerable<Appointment>> GetAllAsync(CancellationToken cancellationToken = default);
     Task SaveChangesAsync(CancellationToken cancellationToken = default);
+    void Delete(Appointment appointment, CancellationToken cancellationToken = default);
 }

@@ -21,7 +21,6 @@ public class AppointmentsController : ApiController
         CancellationToken cancellationToken)
     {
         var result = await _appointmentService.CreateAppointmentAsync(dto, patientId, cancellationToken);
-
         return HandleResult(result, "Appointment has been created");
     }
 
@@ -33,7 +32,22 @@ public class AppointmentsController : ApiController
         CancellationToken cancellationToken)
     {
         var result = await _appointmentService.CreateAppointmentResultAsync(appointmentId, dto, cancellationToken);
-
         return HandleResult(result, "Result has been created successfully");
+    }
+
+    // [Authorize(Roles = "Receptionist")] 
+    [HttpPatch("{id:guid}/approve")]
+    public async Task<IActionResult> ApproveAppointment(Guid id, CancellationToken cancellationToken)
+    {
+        var result = await _appointmentService.ApproveAppointmentAsync(id, cancellationToken);
+        return HandleResult(result, "Appointment has been approved successfully");
+    }
+
+    // [Authorize(Roles = "Receptionist")] 
+    [HttpDelete("delete/{id:guid}")]
+    public async Task<IActionResult> DeleteAppointment(Guid id, CancellationToken cancellationToken)
+    {
+        var result = await _appointmentService.DeleteAppointmentAsync(id, cancellationToken);
+        return HandleResult(result, "Appointment has been deleted successfully");
     }
 }

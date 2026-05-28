@@ -21,5 +21,7 @@ public class Appointment
 
     public DateTime Date { get; set; } = DateTime.UtcNow;
     public DateTime TimeSlot { get; set; }
+
+    public bool IsApproved { get; set; } = false;
     public AppointmentResult? Result { get; set; }
 }

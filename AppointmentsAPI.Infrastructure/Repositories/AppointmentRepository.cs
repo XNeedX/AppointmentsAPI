@@ -17,6 +17,9 @@ public class AppointmentRepository : IAppointmentRepository
     public async Task AddAsync(Appointment appointment, CancellationToken cancellationToken = default) 
         => await _context.Appointments.AddAsync(appointment, cancellationToken);
 
+    public void Delete(Appointment appointment, CancellationToken cancellationToken = default) 
+        => _context.Appointments.Remove(appointment);
+
     public async Task<IEnumerable<Appointment>> GetAllAsync(CancellationToken cancellationToken = default) 
         => await _context.Appointments.AsNoTracking().ToListAsync(cancellationToken);
 

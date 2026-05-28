@@ -90,4 +90,37 @@ public class AppointmentService : IAppointmentService
 
         return Result.Success();
     }
+
+    public async Task<Result> ApproveAppointmentAsync(
+        Guid appointmentId, 
+        CancellationToken cancellationToken = default)
+    {
+        var appointment = await _appointmentRepository.GetByIdAsync(appointmentId, cancellationToken);
+
+        if (appointment == null)
+            return AppointmentErrors.NotFound;
+
+        if (appointment.IsApproved)
+            return AppointmentErrors.AlreadyApproved;
+
+        appointment.IsApproved = true;
+
+        await _appointmentRepository.SaveChangesAsync(cancellationToken);
+
+        return Result.Success();
+    }
+
+    public async Task<Result> DeleteAppointmentAsync(
+        Guid appointmentId, 
+        CancellationToken cancellationToken = default)
+    {
+        var appointment = await _appointmentRepository.GetByIdAsync(appointmentId, cancellationToken);
+        
+        if (appointment == null)
+            return AppointmentErrors.NotFound;
+
+        _appointmentRepository.Delete(appointment, cancellationToken);
+
+        return Result.Success();
+    }
 }
