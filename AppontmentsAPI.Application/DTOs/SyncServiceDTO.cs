@@ -1,3 +1,5 @@
-﻿namespace AppointmentsAPI.Application.DTOs;
+﻿using AppointmentsAPI.Domain.Enums;
 
-public sealed record SyncServiceDTO(Guid Id, string Name);
+namespace AppointmentsAPI.Application.DTOs;
+
+public sealed record SyncServiceDTO(Guid Id, string Name, ServiceCategory Status);

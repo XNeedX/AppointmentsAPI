@@ -1,5 +1,6 @@
 ﻿using AppointmentsAPI.Application.Abstractions;
 using AppointmentsAPI.Application.DTOs;
+using AppointmentsAPI.Presentation.Responses;
 using Microsoft.AspNetCore.Mvc;
 
 namespace AppointmentsAPI.Presentation.Controllers;
@@ -49,5 +50,65 @@ public class AppointmentsController : ApiController
     {
         var result = await _appointmentService.DeleteAppointmentAsync(id, cancellationToken);
         return HandleResult(result, "Appointment has been deleted successfully");
+    }
+
+    [HttpGet("available-time-slots")]
+    public async Task<IActionResult> GetAvailableTimeSlots(
+        [FromQuery] Guid doctorId,
+        [FromQuery] Guid serviceId,
+        [FromQuery] DateTime date, 
+        CancellationToken cancellationToken)
+    {
+        var slots = await _appointmentService.GetAvailableTimeSlotsAsync(doctorId, serviceId, date, cancellationToken);
+
+        var formattedSlots = slots.Select(s => s.ToString(@"hh\:mm"));
+
+        return Ok(ApiResponse<IEnumerable<string>>.Success(formattedSlots));
+    }
+
+    [HttpGet("available-dates")]
+    public async Task<IActionResult> GetAvailableDates(
+        [FromQuery] Guid doctorId,
+        [FromQuery] Guid serviceId,
+        [FromQuery] DateTime startDate,
+        [FromQuery] DateTime endDate,
+        CancellationToken cancellationToken)
+    {
+        var availableDates = new List<string>();
+
+        for (var date = startDate.Date; date <= endDate.Date; date = date.AddDays(1))
+        {
+            var slots = await _appointmentService.GetAvailableTimeSlotsAsync(doctorId, serviceId, date, cancellationToken);
+            if (slots.Any())
+            {
+                availableDates.Add(date.ToString("yyyy-MM-dd"));
+            }
+        }
+
+        return Ok(ApiResponse<IEnumerable<string>>.Success(availableDates));
+    }
+
+    // [Authorize(Roles = "Doctor")] 
+    [HttpGet("doctor/{doctorId:guid}/schedule")]
+    public async Task<IActionResult> GetDoctorSchedule(
+        Guid doctorId,
+        [FromQuery] DateTime date, 
+        CancellationToken cancellationToken)
+    {
+        if (date == default)
+            date = DateTime.UtcNow.Date;
+
+        var result = await _appointmentService.GetDoctorScheduleAsync(doctorId, date, cancellationToken);
+
+        return HandleResult(result);
+    }
+
+    // [Authorize(Roles = "Receptionist")] 
+    [HttpGet("receptionist")]
+    public async Task<IActionResult> GetAppointmentsForReceptionist([FromQuery] GetAppointmentsFilterDTO filter, CancellationToken cancellationToken)
+    {
+        var result = await _appointmentService.GetFilteredAppointmentsAsync(filter, cancellationToken);
+
+        return HandleResult(result);
     }
 }

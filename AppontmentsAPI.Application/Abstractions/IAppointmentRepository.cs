@@ -1,4 +1,5 @@
 ﻿using AppointmentsAPI.Domain.Models;
+using System.Linq.Expressions;
 
 namespace AppointmentsAPI.Application.Abstractions;
 
@@ -9,4 +10,8 @@ public interface IAppointmentRepository
     Task<IEnumerable<Appointment>> GetAllAsync(CancellationToken cancellationToken = default);
     Task SaveChangesAsync(CancellationToken cancellationToken = default);
     void Delete(Appointment appointment, CancellationToken cancellationToken = default);
+    Task<IEnumerable<Appointment>> FindByFilterAsync(
+        Expression<Func<Appointment, bool>> expression, 
+        CancellationToken cancellationToken = default, 
+        params Expression<Func<Appointment, object>>[] includes);
 }

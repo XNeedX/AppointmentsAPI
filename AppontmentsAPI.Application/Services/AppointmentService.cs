@@ -123,4 +123,159 @@ public class AppointmentService : IAppointmentService
 
         return Result.Success();
     }
+
+    public async Task<IEnumerable<TimeSpan>> GetAvailableTimeSlotsAsync(
+        Guid doctorId, 
+        Guid serviceId, 
+        DateTime date, 
+        CancellationToken cancellationToken = default)
+    {
+        var service = await _serviceRepository.GetByIdAsync(serviceId, cancellationToken);
+        if (service == null) return Enumerable.Empty<TimeSpan>();
+
+        int requiredSlots = service.Category switch
+        {
+            ServiceCategory.Analyses => 1,
+            ServiceCategory.Consultations => 2,
+            ServiceCategory.Diagnostics => 3,
+            _ => 1
+        };
+        int durationMinutes = requiredSlots * 10;
+
+        var existingAppointments = await _appointmentRepository.FindByFilterAsync(
+            a => a.DoctorId == doctorId && a.Date.Date == date.Date,
+            cancellationToken,
+            a => a.Service); 
+
+        var workStart = new TimeSpan(9, 0, 0);
+        var workEnd = new TimeSpan(18, 0, 0);
+        var availableSlots = new List<TimeSpan>();
+
+        for (var time = workStart; time.Add(TimeSpan.FromMinutes(durationMinutes)) <= workEnd; time = time.Add(TimeSpan.FromMinutes(10)))
+        {
+            bool isFree = true;
+            var potentialEndTime = time.Add(TimeSpan.FromMinutes(durationMinutes));
+
+            foreach (var app in existingAppointments)
+            {
+                var appStartTime = app.TimeSlot.TimeOfDay;
+
+                int appDuration = app.Service.Category switch
+                {
+                    ServiceCategory.Analyses => 10,
+                    ServiceCategory.Consultations => 20,
+                    ServiceCategory.Diagnostics => 30,
+                    _ => 10
+                };
+                var appEndTime = appStartTime.Add(TimeSpan.FromMinutes(appDuration));
+
+                if (time < appEndTime && potentialEndTime > appStartTime)
+                {
+                    isFree = false;
+                    break;
+                }
+            }
+
+            if (isFree)
+            {
+                availableSlots.Add(time);
+            }
+        }
+
+        return availableSlots;
+    }
+
+    public async Task<Result<IEnumerable<DoctorScheduleDTO>>> GetDoctorScheduleAsync(Guid doctorId, DateTime date, CancellationToken cancellationToken = default)
+    {
+        var targetDate = date.Date;
+
+        var appointments = await _appointmentRepository.FindByFilterAsync(
+            a => a.DoctorId == doctorId && a.Date.Date == targetDate,
+            cancellationToken,
+            a => a.Patient,
+            a => a.Service,
+            a => a.Result 
+        );
+
+        var schedule = appointments
+            .OrderBy(a => a.TimeSlot) 
+            .Select(a =>
+            {
+                int durationMinutes = a.Service.Category switch
+                {
+                    ServiceCategory.Analyses => 10,
+                    ServiceCategory.Consultations => 20,
+                    ServiceCategory.Diagnostics => 30,
+                    _ => 10
+                };
+
+                var patientName = $"{a.Patient.LastName} {a.Patient.FirstName} {a.Patient.MiddleName}".Trim();
+
+                return new DoctorScheduleDTO(
+                    a.Id,
+                    a.PatientId,
+                    patientName,
+                    a.Service.Name,
+                    a.TimeSlot,                                
+                    a.TimeSlot.AddMinutes(durationMinutes),    
+                    a.IsApproved,                              
+                    a.Result != null                          
+                );
+            });
+
+        return Result<IEnumerable<DoctorScheduleDTO>>.Success(schedule);
+    }
+
+    public async Task<Result<IEnumerable<ViewAppointmentListDTO>>> GetFilteredAppointmentsAsync(GetAppointmentsFilterDTO filter, CancellationToken cancellationToken = default)
+    {
+        var appointments = await _appointmentRepository.FindByFilterAsync(
+        a =>
+            (!filter.Date.HasValue || a.Date.Date == filter.Date.Value.Date) &&
+
+            (string.IsNullOrEmpty(filter.DoctorName) ||
+                a.Doctor.FirstName.Contains(filter.DoctorName) ||
+                a.Doctor.LastName.Contains(filter.DoctorName)) &&
+
+            (string.IsNullOrEmpty(filter.ServiceName) || a.Service.Name.Contains(filter.ServiceName)) &&
+
+            (!filter.IsApproved.HasValue || a.IsApproved == filter.IsApproved.Value) &&
+
+            (!filter.OfficeId.HasValue || a.OfficeId == filter.OfficeId.Value),
+
+        cancellationToken,
+        a => a.Doctor,
+        a => a.Patient,
+        a => a.Service
+        );
+
+        var sortedAppointments = appointments
+        .OrderBy(a => a.TimeSlot)            
+        .ThenBy(a => a.Doctor.LastName)      
+        .ThenBy(a => a.Doctor.FirstName)     
+        .ThenBy(a => a.Service.Name);
+
+        var responseList = sortedAppointments.Select(a =>
+        {
+            int durationMinutes = a.Service.Category switch
+            {
+                ServiceCategory.Analyses => 10,
+                ServiceCategory.Consultations => 20,
+                ServiceCategory.Diagnostics => 30,
+                _ => 10
+            };
+
+            return new ViewAppointmentListDTO(
+                a.Id,
+                a.TimeSlot,
+                a.TimeSlot.AddMinutes(durationMinutes),
+                $"{a.Doctor.LastName} {a.Doctor.FirstName} {a.Doctor.MiddleName}".Trim(),
+                $"{a.Patient.LastName} {a.Patient.FirstName} {a.Patient.MiddleName}".Trim(),
+                a.Patient.PhoneNumber,
+                a.Service.Name,
+                a.IsApproved
+            );
+        });
+
+        return Result<IEnumerable<ViewAppointmentListDTO>>.Success(responseList);
+    }
 }

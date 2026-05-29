@@ -2,6 +2,7 @@
 using AppointmentsAPI.Domain.Models;
 using AppointmentsAPI.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
+using System.Linq.Expressions;
 
 namespace AppointmentsAPI.Infrastructure.Repositories;
 
@@ -19,6 +20,21 @@ public class AppointmentRepository : IAppointmentRepository
 
     public void Delete(Appointment appointment, CancellationToken cancellationToken = default) 
         => _context.Appointments.Remove(appointment);
+
+    public async Task<IEnumerable<Appointment>> FindByFilterAsync(
+        Expression<Func<Appointment, bool>> expression, 
+        CancellationToken cancellationToken = default, 
+        params Expression<Func<Appointment, object>>[] includes)
+    {
+        IQueryable<Appointment> query = _context.Appointments.Where(expression).AsNoTracking();
+
+        foreach (var include in includes)
+        {
+            query = query.Include(include);
+        }
+
+        return await query.ToListAsync(cancellationToken);
+    }
 
     public async Task<IEnumerable<Appointment>> GetAllAsync(CancellationToken cancellationToken = default) 
         => await _context.Appointments.AsNoTracking().ToListAsync(cancellationToken);

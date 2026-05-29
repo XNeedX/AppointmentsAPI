@@ -19,4 +19,16 @@ public interface IAppointmentService
     Task<Result> DeleteAppointmentAsync(
         Guid appointmentId, 
         CancellationToken cancellationToken = default);
+    Task<IEnumerable<TimeSpan>> GetAvailableTimeSlotsAsync(
+        Guid doctorId,
+        Guid serviceId,
+        DateTime date,
+        CancellationToken cancellationToken = default);
+    Task<Result<IEnumerable<DoctorScheduleDTO>>> GetDoctorScheduleAsync(
+        Guid doctorId, 
+        DateTime date, 
+        CancellationToken cancellationToken = default);
+    Task<Result<IEnumerable<ViewAppointmentListDTO>>> GetFilteredAppointmentsAsync(
+    GetAppointmentsFilterDTO filter,
+    CancellationToken cancellationToken = default);
 }

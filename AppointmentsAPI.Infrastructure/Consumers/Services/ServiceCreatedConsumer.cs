@@ -1,5 +1,6 @@
 ﻿using AppointmentsAPI.Application.Abstractions;
 using AppointmentsAPI.Application.DTOs;
+using AppointmentsAPI.Domain.Enums;
 using InnoClinic.Contracts.Events.Services;
 using MassTransit;
 
@@ -21,7 +22,8 @@ public sealed class ServiceCreatedConsumer : IConsumer<IServiceCreatedEvent>
         var dto = new SyncServiceDTO
         (
             message.Id,
-            message.Name
+            message.Name,
+            (ServiceCategory)message.Category
         );
 
         await _serviceSyncService.CreateServiceAsync(dto);

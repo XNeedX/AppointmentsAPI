@@ -1,5 +1,6 @@
 ﻿using AppointmentsAPI.Application.Abstractions;
 using AppointmentsAPI.Application.DTOs;
+using AppointmentsAPI.Domain.Enums;
 using InnoClinic.Contracts.Events.Services;
 using MassTransit;
 
@@ -17,7 +18,7 @@ public class ServiceUpdatedConsumer : IConsumer<IServiceUpdatedEvent>
     public Task Consume(ConsumeContext<IServiceUpdatedEvent> context)
     {
         var msg = context.Message;
-        var dto = new SyncServiceDTO(msg.Id, msg.Name);
+        var dto = new SyncServiceDTO(msg.Id, msg.Name, (ServiceCategory)msg.Category);
         return _serviceSyncService.UpdateServiceAsync(dto);
     }
 }
