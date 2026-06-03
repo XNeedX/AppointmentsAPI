@@ -46,6 +46,15 @@ public class AppointmentsController : ApiController
         return HandleResult(result);
     }
 
+    [HttpGet("patient/results/{appointmentId:guid}")]
+    public async Task<IActionResult> GetPatientAppointmentResult(
+        Guid appointmentId,
+        CancellationToken cancellationToken)
+    {
+        var result = await _appointmentService.GetPatientAppointmentResultAsync(appointmentId, cancellationToken);
+        return HandleResult(result);
+    }
+
     // [Authorize(Roles = "Receptionist")] 
     [HttpPatch("{id:guid}/approve")]
     public async Task<IActionResult> ApproveAppointment(Guid id, CancellationToken cancellationToken)

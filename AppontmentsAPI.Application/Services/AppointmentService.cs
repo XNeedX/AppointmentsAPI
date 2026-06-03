@@ -1,8 +1,11 @@
 ﻿using AppointmentsAPI.Application.Abstractions;
 using AppointmentsAPI.Application.DTOs;
+using AppointmentsAPI.Application.Models;
 using AppointmentsAPI.Application.Results;
 using AppointmentsAPI.Domain.Enums;
 using AppointmentsAPI.Domain.Models;
+using InnoClinic.Contracts.Events.Appointments;
+using MassTransit;
 
 namespace AppointmentsAPI.Application.Services;
 
@@ -14,17 +17,21 @@ public class AppointmentService : IAppointmentService
     private readonly IRepository<Patient, Guid> _patientRepository;
     private readonly IRepository<Service, Guid> _serviceRepository;
     private readonly IRepository<AppointmentResult, Guid> _appointmentResultRepository;
+    private readonly IPDFGeneratorService _pdfGeneratorService;
+    private readonly IPublishEndpoint _publishEndpoint;
 
     public AppointmentService(IAppointmentRepository appointmentRepository,
         IRepository<Doctor, Guid> doctorRepository,
         IRepository<Office, Guid> officeRepository,
         IRepository<Patient, Guid> patientRepository,
-        IRepository<Service, Guid> serviceRepository)
+        IRepository<Service, Guid> serviceRepository,
+        IPublishEndpoint publishEndpoint)
     {
         _doctorRepository = doctorRepository;
         _officeRepository = officeRepository;
         _patientRepository = patientRepository;
         _serviceRepository = serviceRepository;
+        _publishEndpoint = publishEndpoint;
         _appointmentRepository = appointmentRepository;
     }
 
@@ -87,6 +94,27 @@ public class AppointmentService : IAppointmentService
 
         await _appointmentResultRepository.AddAsync(result, cancellationToken);
         await _appointmentResultRepository.SaveChangesAsync(cancellationToken);
+
+        var pdfModel = new AppointmentResultPDF
+        {
+            PatientFullName = $"{appointment.Patient.LastName} {appointment.Patient.FirstName}",
+            DoctorFullName = $"{appointment.Doctor.LastName} {appointment.Doctor.FirstName}",
+            Specialization = appointment.Doctor.Specialization,
+            Date = appointment.Date,
+            Complaints = dto.Complaints,
+            Conclusion = dto.Conclusion,
+            Recommendations = dto.Recommendations
+        };
+
+        var pdfBytes = _pdfGeneratorService.GenerateAppointmentResultPdf(pdfModel);
+        var stream = new MemoryStream(pdfBytes);
+
+        await _publishEndpoint.Publish<ISaveAppointmentResultDocumentEvent>(new
+        {
+            AppointmentId = appointmentId,
+            PdfBytes = pdfBytes,
+            ContentType = "application/pdf"
+        }, cancellationToken);
 
         return Result.Success();
     }
@@ -177,9 +205,7 @@ public class AppointmentService : IAppointmentService
             }
 
             if (isFree)
-            {
                 availableSlots.Add(time);
-            }
         }
 
         return availableSlots;
@@ -420,5 +446,46 @@ public class AppointmentService : IAppointmentService
         );
 
         return Result<ViewAppointmentResultDTO>.Success(dto);
+    }
+
+    public async Task<Result<PatientViewAppointmentResultDTO>> GetPatientAppointmentResultAsync(
+    Guid appointmentId,
+    CancellationToken cancellationToken = default)
+    {
+        var appointments = await _appointmentRepository.FindByFilterAsync(
+            a => a.Id == appointmentId,
+            cancellationToken,
+            a => a.Patient,
+            a => a.Doctor,
+            a => a.Service,
+            a => a.Result
+        );
+
+        var appointment = appointments.FirstOrDefault();
+
+        if (appointment == null)
+            return AppointmentErrors.NotFound;
+
+        if (appointment.Result == null)
+            return AppointmentErrors.ResultNotFound;
+
+        var patientName = $"{appointment.Patient.LastName} {appointment.Patient.FirstName} {appointment.Patient.MiddleName}".Trim();
+        var doctorName = $"{appointment.Doctor.LastName} {appointment.Doctor.FirstName} {appointment.Doctor.MiddleName}".Trim();
+
+        var dto = new PatientViewAppointmentResultDTO(
+            AppointmentId: appointment.Id,
+            Date: appointment.Date,
+            PatientFullName: patientName,
+            PatientDateOfBirth: appointment.Patient.DateOfBirth,
+            DoctorFullName: doctorName,
+            Specialization: appointment.Doctor.Specialization,
+            ServiceName: appointment.Service.Name,
+            Complaints: appointment.Result.Complaints,
+            Conclusion: appointment.Result.Conclusion,
+            Diagnosis: "", 
+            Recommendations: appointment.Result.Recommendations
+        );
+
+        return Result<PatientViewAppointmentResultDTO>.Success(dto);
     }
 }

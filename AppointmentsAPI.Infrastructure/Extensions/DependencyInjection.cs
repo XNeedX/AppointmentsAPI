@@ -1,4 +1,5 @@
 ﻿using AppointmentsAPI.Application.Abstractions;
+using AppointmentsAPI.Application.Services;
 using AppointmentsAPI.Application.SyncServices;
 using AppointmentsAPI.Domain.Models;
 using AppointmentsAPI.Infrastructure.Consumers.Services;
@@ -45,6 +46,7 @@ public static class DependencyInjection
         services.AddScoped<IServiceSyncService, ServiceSyncService>();
         services.AddScoped<IOfficeSyncService, OfficeSyncService>();
         services.AddScoped<ISpecializationSyncService, SpecializationSyncService>();
+        services.AddScoped<IPDFGeneratorService, PDFGeneratorService>();
 
         return services;
     }

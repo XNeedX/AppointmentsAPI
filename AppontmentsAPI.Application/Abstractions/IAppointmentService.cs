@@ -16,6 +16,9 @@ public interface IAppointmentService
     Task<Result<ViewAppointmentResultDTO>> ViewAppointmentResultAsync(
         Guid appointmentId,
         CancellationToken cancellationToken = default);
+    Task<Result<PatientViewAppointmentResultDTO>> GetPatientAppointmentResultAsync(
+    Guid appointmentId,
+    CancellationToken cancellationToken = default);
     Task<Result> ApproveAppointmentAsync(
         Guid appointmentId, 
         CancellationToken cancellationToken = default);
