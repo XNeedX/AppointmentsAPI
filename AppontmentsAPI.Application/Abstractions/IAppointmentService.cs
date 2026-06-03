@@ -13,6 +13,9 @@ public interface IAppointmentService
         Guid appointmentId, 
         CreateAppointmentResultDTO dto, 
         CancellationToken cancellationToken = default);
+    Task<Result<ViewAppointmentResultDTO>> ViewAppointmentResultAsync(
+        Guid appointmentId,
+        CancellationToken cancellationToken = default);
     Task<Result> ApproveAppointmentAsync(
         Guid appointmentId, 
         CancellationToken cancellationToken = default);
@@ -30,5 +33,15 @@ public interface IAppointmentService
         CancellationToken cancellationToken = default);
     Task<Result<IEnumerable<ViewAppointmentListDTO>>> GetFilteredAppointmentsAsync(
     GetAppointmentsFilterDTO filter,
+    CancellationToken cancellationToken = default);
+    Task<Result<IEnumerable<ViewAppointmentHistoryDTO>>> GetAppointmentHistoryAsync(
+    Guid patientId,
+    CancellationToken cancellationToken = default);
+    Task<Result<IEnumerable<PatientAppointmentHistoryDTO>>> GetPatientAppointmentHistoryAsync(
+    Guid patientId,
+    CancellationToken cancellationToken = default);
+    Task<Result> UpdateAppointmentResultAsync(
+    Guid resultId,
+    UpdateAppointmentResultDTO dto,
     CancellationToken cancellationToken = default);
 }

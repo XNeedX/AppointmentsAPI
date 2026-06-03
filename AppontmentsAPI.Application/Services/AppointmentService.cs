@@ -29,8 +29,8 @@ public class AppointmentService : IAppointmentService
     }
 
     public async Task<Result> CreateAppointmentAsync(
-        CreateAppointmentDTO dto, 
-        Guid patientId, 
+        CreateAppointmentDTO dto,
+        Guid patientId,
         CancellationToken cancellationToken = default)
     {
         var patient = await _patientRepository.GetByIdAsync(patientId, cancellationToken);
@@ -66,13 +66,13 @@ public class AppointmentService : IAppointmentService
         return Result.Success();
     }
     public async Task<Result> CreateAppointmentResultAsync(
-        Guid appointmentId, 
-        CreateAppointmentResultDTO dto, 
+        Guid appointmentId,
+        CreateAppointmentResultDTO dto,
         CancellationToken cancellationToken = default)
     {
         var appointment = await _appointmentRepository.GetByIdAsync(appointmentId, cancellationToken);
 
-        if (appointment == null) return AppointmentErrors.NotFound; 
+        if (appointment == null) return AppointmentErrors.NotFound;
 
         if (appointment.Result != null) return AppointmentErrors.ResultAlreadyExists;
 
@@ -92,7 +92,7 @@ public class AppointmentService : IAppointmentService
     }
 
     public async Task<Result> ApproveAppointmentAsync(
-        Guid appointmentId, 
+        Guid appointmentId,
         CancellationToken cancellationToken = default)
     {
         var appointment = await _appointmentRepository.GetByIdAsync(appointmentId, cancellationToken);
@@ -111,11 +111,11 @@ public class AppointmentService : IAppointmentService
     }
 
     public async Task<Result> DeleteAppointmentAsync(
-        Guid appointmentId, 
+        Guid appointmentId,
         CancellationToken cancellationToken = default)
     {
         var appointment = await _appointmentRepository.GetByIdAsync(appointmentId, cancellationToken);
-        
+
         if (appointment == null)
             return AppointmentErrors.NotFound;
 
@@ -125,9 +125,9 @@ public class AppointmentService : IAppointmentService
     }
 
     public async Task<IEnumerable<TimeSpan>> GetAvailableTimeSlotsAsync(
-        Guid doctorId, 
-        Guid serviceId, 
-        DateTime date, 
+        Guid doctorId,
+        Guid serviceId,
+        DateTime date,
         CancellationToken cancellationToken = default)
     {
         var service = await _serviceRepository.GetByIdAsync(serviceId, cancellationToken);
@@ -145,7 +145,7 @@ public class AppointmentService : IAppointmentService
         var existingAppointments = await _appointmentRepository.FindByFilterAsync(
             a => a.DoctorId == doctorId && a.Date.Date == date.Date,
             cancellationToken,
-            a => a.Service); 
+            a => a.Service);
 
         var workStart = new TimeSpan(9, 0, 0);
         var workEnd = new TimeSpan(18, 0, 0);
@@ -194,11 +194,11 @@ public class AppointmentService : IAppointmentService
             cancellationToken,
             a => a.Patient,
             a => a.Service,
-            a => a.Result 
+            a => a.Result
         );
 
         var schedule = appointments
-            .OrderBy(a => a.TimeSlot) 
+            .OrderBy(a => a.TimeSlot)
             .Select(a =>
             {
                 int durationMinutes = a.Service.Category switch
@@ -216,10 +216,10 @@ public class AppointmentService : IAppointmentService
                     a.PatientId,
                     patientName,
                     a.Service.Name,
-                    a.TimeSlot,                                
-                    a.TimeSlot.AddMinutes(durationMinutes),    
-                    a.IsApproved,                              
-                    a.Result != null                          
+                    a.TimeSlot,
+                    a.TimeSlot.AddMinutes(durationMinutes),
+                    a.IsApproved,
+                    a.Result != null
                 );
             });
 
@@ -249,9 +249,9 @@ public class AppointmentService : IAppointmentService
         );
 
         var sortedAppointments = appointments
-        .OrderBy(a => a.TimeSlot)            
-        .ThenBy(a => a.Doctor.LastName)      
-        .ThenBy(a => a.Doctor.FirstName)     
+        .OrderBy(a => a.TimeSlot)
+        .ThenBy(a => a.Doctor.LastName)
+        .ThenBy(a => a.Doctor.FirstName)
         .ThenBy(a => a.Service.Name);
 
         var responseList = sortedAppointments.Select(a =>
@@ -277,5 +277,148 @@ public class AppointmentService : IAppointmentService
         });
 
         return Result<IEnumerable<ViewAppointmentListDTO>>.Success(responseList);
+    }
+
+    public async Task<Result<IEnumerable<ViewAppointmentHistoryDTO>>> GetAppointmentHistoryAsync(
+    Guid patientId,
+    CancellationToken cancellationToken = default)
+    {
+        var appointments = await _appointmentRepository.FindByFilterAsync(
+            a => a.PatientId == patientId,
+            cancellationToken,
+            a => a.Doctor,
+            a => a.Service,
+            a => a.Result
+        );
+
+        var sortedAppointments = appointments
+            .OrderByDescending(a => a.Date.Date)
+            .ThenBy(a => a.TimeSlot.TimeOfDay);
+
+        var result = sortedAppointments.Select(a =>
+        {
+            int durationMinutes = a.Service.Category switch
+            {
+                ServiceCategory.Analyses => 10,
+                ServiceCategory.Consultations => 20,
+                ServiceCategory.Diagnostics => 30,
+                _ => 10
+            };
+
+            var doctorFullName = $"{a.Doctor.LastName} {a.Doctor.FirstName} {a.Doctor.MiddleName}".Trim();
+
+            return new ViewAppointmentHistoryDTO(
+                AppointmentId: a.Id,
+                Date: a.Date.Date,
+                StartTime: a.TimeSlot,
+                EndTime: a.TimeSlot.AddMinutes(durationMinutes),
+                DoctorFullName: doctorFullName,
+                ServiceName: a.Service.Name
+            );
+        });
+
+        return Result<IEnumerable<ViewAppointmentHistoryDTO>>.Success(result);
+    }
+
+    public async Task<Result<IEnumerable<PatientAppointmentHistoryDTO>>> GetPatientAppointmentHistoryAsync(
+    Guid patientId,
+    CancellationToken cancellationToken = default)
+    {
+        var appointments = await _appointmentRepository.FindByFilterAsync(
+            a => a.PatientId == patientId,
+            cancellationToken,
+            a => a.Doctor,
+            a => a.Service,
+            a => a.Result
+        );
+
+        var sortedAppointments = appointments
+            .OrderByDescending(a => a.Date.Date)
+            .ThenBy(a => a.TimeSlot.TimeOfDay);
+
+        var result = sortedAppointments.Select(a =>
+        {
+            int durationMinutes = a.Service.Category switch
+            {
+                ServiceCategory.Analyses => 10,
+                ServiceCategory.Consultations => 20,
+                ServiceCategory.Diagnostics => 30,
+                _ => 10
+            };
+
+            var doctorFullName = $"{a.Doctor.LastName} {a.Doctor.FirstName} {a.Doctor.MiddleName}".Trim();
+
+            return new PatientAppointmentHistoryDTO(
+                AppointmentId: a.Id,
+                Date: a.Date.Date,
+                StartTime: a.TimeSlot,
+                EndTime: a.TimeSlot.AddMinutes(durationMinutes),
+                DoctorFullName: doctorFullName,
+                ServiceName: a.Service.Name,
+                ResultId: a.Result?.Id
+            );
+        });
+
+        return Result<IEnumerable<PatientAppointmentHistoryDTO>>.Success(result);
+    }
+
+    public async Task<Result> UpdateAppointmentResultAsync(
+    Guid resultId,
+    UpdateAppointmentResultDTO dto,
+    CancellationToken cancellationToken = default)
+    {
+        var existingResult = await _appointmentResultRepository.GetByIdAsync(resultId, cancellationToken);
+
+        if (existingResult == null)
+            return AppointmentErrors.ResultNotFound;
+
+        existingResult.Complaints = dto.Complaints;
+        existingResult.Conclusion = dto.Conclusion;
+        existingResult.Recommendations = dto.Recommendations;
+
+        await _appointmentResultRepository.SaveChangesAsync(cancellationToken);
+
+        return Result.Success();
+    }
+
+    public async Task<Result<ViewAppointmentResultDTO>> ViewAppointmentResultAsync(
+            Guid appointmentId,
+            CancellationToken cancellationToken = default)
+    {
+        var appointments = await _appointmentRepository.FindByFilterAsync(
+            a => a.Id == appointmentId,
+            cancellationToken,
+            a => a.Patient,
+            a => a.Doctor,
+            a => a.Service,
+            a => a.Result
+        );
+
+        var appointment = appointments.FirstOrDefault();
+
+        if (appointment == null)
+            return AppointmentErrors.NotFound;
+
+        if (appointment.Result == null)
+            return AppointmentErrors.ResultNotFound; 
+
+        var patientName = $"{appointment.Patient.LastName} {appointment.Patient.FirstName} {appointment.Patient.MiddleName}".Trim();
+        var doctorName = $"{appointment.Doctor.LastName} {appointment.Doctor.FirstName} {appointment.Doctor.MiddleName}".Trim();
+
+        var dto = new ViewAppointmentResultDTO(
+            AppointmentId: appointment.Id,
+            Date: appointment.Date,
+            PatientFullName: patientName,
+            PatientDateOfBirth: appointment.Patient.DateOfBirth,
+            DoctorFullName: doctorName,
+            Specialization: appointment.Doctor.Specialization,
+            DoctorId: appointment.DoctorId,
+            ServiceName: appointment.Service.Name,
+            Complaints: appointment.Result.Complaints,
+            Conclusion: appointment.Result.Conclusion,
+            Recommendations: appointment.Result.Recommendations
+        );
+
+        return Result<ViewAppointmentResultDTO>.Success(dto);
     }
 }

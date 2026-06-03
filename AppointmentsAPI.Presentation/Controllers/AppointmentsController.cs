@@ -36,6 +36,16 @@ public class AppointmentsController : ApiController
         return HandleResult(result, "Result has been created successfully");
     }
 
+    // [Authorize(Roles = "Doctor")] 
+    [HttpGet("{appointmentId:guid}/results")]
+    public async Task<IActionResult> GetAppointmentResult(
+        Guid appointmentId,
+        CancellationToken cancellationToken)
+    {
+        var result = await _appointmentService.ViewAppointmentResultAsync(appointmentId, cancellationToken);
+        return HandleResult(result);
+    }
+
     // [Authorize(Roles = "Receptionist")] 
     [HttpPatch("{id:guid}/approve")]
     public async Task<IActionResult> ApproveAppointment(Guid id, CancellationToken cancellationToken)
@@ -80,9 +90,7 @@ public class AppointmentsController : ApiController
         {
             var slots = await _appointmentService.GetAvailableTimeSlotsAsync(doctorId, serviceId, date, cancellationToken);
             if (slots.Any())
-            {
                 availableDates.Add(date.ToString("yyyy-MM-dd"));
-            }
         }
 
         return Ok(ApiResponse<IEnumerable<string>>.Success(availableDates));
@@ -110,5 +118,25 @@ public class AppointmentsController : ApiController
         var result = await _appointmentService.GetFilteredAppointmentsAsync(filter, cancellationToken);
 
         return HandleResult(result);
+    }
+
+    // [Authorize(Roles = "Doctor")]
+    [HttpGet("patient/{patientId:guid}/history")]
+    public async Task<IActionResult> GetPatientHistory(Guid patientId, CancellationToken cancellationToken)
+    {
+        var result = await _appointmentService.GetAppointmentHistoryAsync(patientId, cancellationToken);
+        return HandleResult(result);
+    }
+
+    // [Authorize(Roles = "Doctor")] 
+    [HttpPut("results/{resultId:guid}")]
+    public async Task<IActionResult> UpdateResult(
+        Guid resultId,
+        [FromBody] UpdateAppointmentResultDTO dto,
+        CancellationToken cancellationToken)
+    {
+        var result = await _appointmentService.UpdateAppointmentResultAsync(resultId, dto, cancellationToken);
+
+        return HandleResult(result, "Result has been updated successfully");
     }
 }
