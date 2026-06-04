@@ -75,11 +75,12 @@ public class AppointmentsController : ApiController
     public async Task<IActionResult> GetAvailableTimeSlots(
         [FromQuery] Guid doctorId,
         [FromQuery] Guid serviceId,
-        [FromQuery] DateTime date, 
+        [FromQuery] DateTime date,
         CancellationToken cancellationToken)
     {
-        var slots = await _appointmentService.GetAvailableTimeSlotsAsync(doctorId, serviceId, date, cancellationToken);
+        var utcDate = DateTime.SpecifyKind(date.Date, DateTimeKind.Utc);
 
+        var slots = await _appointmentService.GetAvailableTimeSlotsAsync(doctorId, serviceId, utcDate, cancellationToken);
         var formattedSlots = slots.Select(s => s.ToString(@"hh\:mm"));
 
         return Ok(ApiResponse<IEnumerable<string>>.Success(formattedSlots));
@@ -87,17 +88,19 @@ public class AppointmentsController : ApiController
 
     [HttpGet("available-dates")]
     public async Task<IActionResult> GetAvailableDates(
-        [FromQuery] Guid doctorId,
-        [FromQuery] Guid serviceId,
-        [FromQuery] DateTime startDate,
-        [FromQuery] DateTime endDate,
-        CancellationToken cancellationToken)
+    [FromQuery] Guid doctorId,
+    [FromQuery] Guid serviceId,
+    [FromQuery] DateTime startDate,
+    [FromQuery] DateTime endDate,
+    CancellationToken cancellationToken)
     {
         var availableDates = new List<string>();
 
         for (var date = startDate.Date; date <= endDate.Date; date = date.AddDays(1))
         {
-            var slots = await _appointmentService.GetAvailableTimeSlotsAsync(doctorId, serviceId, date, cancellationToken);
+            var utcDate = DateTime.SpecifyKind(date, DateTimeKind.Utc);
+
+            var slots = await _appointmentService.GetAvailableTimeSlotsAsync(doctorId, serviceId, utcDate, cancellationToken);
             if (slots.Any())
                 availableDates.Add(date.ToString("yyyy-MM-dd"));
         }
@@ -109,13 +112,15 @@ public class AppointmentsController : ApiController
     [HttpGet("doctor/{doctorId:guid}/schedule")]
     public async Task<IActionResult> GetDoctorSchedule(
         Guid doctorId,
-        [FromQuery] DateTime date, 
+        [FromQuery] DateTime date,
         CancellationToken cancellationToken)
     {
         if (date == default)
             date = DateTime.UtcNow.Date;
 
-        var result = await _appointmentService.GetDoctorScheduleAsync(doctorId, date, cancellationToken);
+        var utcDate = DateTime.SpecifyKind(date.Date, DateTimeKind.Utc);
+
+        var result = await _appointmentService.GetDoctorScheduleAsync(doctorId, utcDate, cancellationToken);
 
         return HandleResult(result);
     }

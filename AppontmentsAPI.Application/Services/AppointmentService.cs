@@ -153,10 +153,10 @@ public class AppointmentService : IAppointmentService
     }
 
     public async Task<IEnumerable<TimeSpan>> GetAvailableTimeSlotsAsync(
-        Guid doctorId,
-        Guid serviceId,
-        DateTime date,
-        CancellationToken cancellationToken = default)
+    Guid doctorId,
+    Guid serviceId,
+    DateTime date,
+    CancellationToken cancellationToken = default)
     {
         var service = await _serviceRepository.GetByIdAsync(serviceId, cancellationToken);
         if (service == null) return Enumerable.Empty<TimeSpan>();
@@ -170,23 +170,26 @@ public class AppointmentService : IAppointmentService
         };
         int durationMinutes = requiredSlots * 10;
 
+        var startOfDay = DateTime.SpecifyKind(date.Date, DateTimeKind.Utc);
+        var endOfDay = startOfDay.AddDays(1);
+
         var existingAppointments = await _appointmentRepository.FindByFilterAsync(
-            a => a.DoctorId == doctorId && a.Date.Date == date.Date,
+            a => a.DoctorId == doctorId && a.TimeSlot >= startOfDay && a.TimeSlot < endOfDay,
             cancellationToken,
             a => a.Service);
 
-        var workStart = new TimeSpan(9, 0, 0);
-        var workEnd = new TimeSpan(18, 0, 0);
+        var workStart = startOfDay.AddHours(9);  
+        var workEnd = startOfDay.AddHours(18);  
         var availableSlots = new List<TimeSpan>();
 
-        for (var time = workStart; time.Add(TimeSpan.FromMinutes(durationMinutes)) <= workEnd; time = time.Add(TimeSpan.FromMinutes(10)))
+        for (var slotTime = workStart; slotTime.AddMinutes(durationMinutes) <= workEnd; slotTime = slotTime.AddMinutes(10))
         {
             bool isFree = true;
-            var potentialEndTime = time.Add(TimeSpan.FromMinutes(durationMinutes));
+            var slotEndTime = slotTime.AddMinutes(durationMinutes);
 
             foreach (var app in existingAppointments)
             {
-                var appStartTime = app.TimeSlot.TimeOfDay;
+                var appStartTime = app.TimeSlot;
 
                 int appDuration = app.Service.Category switch
                 {
@@ -195,9 +198,9 @@ public class AppointmentService : IAppointmentService
                     ServiceCategory.Diagnostics => 30,
                     _ => 10
                 };
-                var appEndTime = appStartTime.Add(TimeSpan.FromMinutes(appDuration));
+                var appEndTime = appStartTime.AddMinutes(appDuration);
 
-                if (time < appEndTime && potentialEndTime > appStartTime)
+                if (slotTime < appEndTime && slotEndTime > appStartTime)
                 {
                     isFree = false;
                     break;
@@ -205,7 +208,7 @@ public class AppointmentService : IAppointmentService
             }
 
             if (isFree)
-                availableSlots.Add(time);
+                availableSlots.Add(slotTime.TimeOfDay);
         }
 
         return availableSlots;

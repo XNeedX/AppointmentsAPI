@@ -16,9 +16,6 @@ public class Appointment
     public Guid PatientId { get; set; }
     public Patient Patient { get; set; }
 
-    public Guid ReceptionistId { get; set; }
-    public Receptionist Receptionist { get; set; }
-
     public DateTime Date { get; set; } = DateTime.UtcNow;
     public DateTime TimeSlot { get; set; }
 
