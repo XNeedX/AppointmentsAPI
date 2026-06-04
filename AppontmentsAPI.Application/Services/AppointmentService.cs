@@ -56,6 +56,10 @@ public class AppointmentService : IAppointmentService
         if (service == null) return AppointmentErrors.ServiceNotFound;
         if (service.Status != Status.Active) return AppointmentErrors.ServiceNotActive;
 
+        var cleanTimeSlot = new DateTime(
+        dto.TimeSlot.Year, dto.TimeSlot.Month, dto.TimeSlot.Day,
+        dto.TimeSlot.Hour, dto.TimeSlot.Minute, 0, dto.TimeSlot.Kind);
+
         var appointment = new Appointment
         {
             Id = Guid.NewGuid(),
@@ -64,7 +68,7 @@ public class AppointmentService : IAppointmentService
             OfficeId = dto.OfficeId,
             PatientId = patientId,
             Date = dto.Date,
-            TimeSlot = dto.TimeSlot
+            TimeSlot = cleanTimeSlot
         };
 
         await _appointmentRepository.AddAsync(appointment, cancellationToken);
@@ -170,26 +174,34 @@ public class AppointmentService : IAppointmentService
         };
         int durationMinutes = requiredSlots * 10;
 
-        var startOfDay = DateTime.SpecifyKind(date.Date, DateTimeKind.Utc);
-        var endOfDay = startOfDay.AddDays(1);
+        var clinicTimeZone = TimeZoneInfo.Local;
+
+        var targetDate = DateTime.SpecifyKind(date.Date, DateTimeKind.Unspecified);
+
+        var localWorkStart = targetDate.AddHours(9);
+        var localWorkEnd = targetDate.AddHours(18);
+
+        var utcStartOfDay = TimeZoneInfo.ConvertTimeToUtc(targetDate, clinicTimeZone);
+        var utcEndOfDay = utcStartOfDay.AddDays(1);
 
         var existingAppointments = await _appointmentRepository.FindByFilterAsync(
-            a => a.DoctorId == doctorId && a.TimeSlot >= startOfDay && a.TimeSlot < endOfDay,
+            a => a.DoctorId == doctorId && a.TimeSlot >= utcStartOfDay && a.TimeSlot < utcEndOfDay,
             cancellationToken,
             a => a.Service);
 
-        var workStart = startOfDay.AddHours(9);  
-        var workEnd = startOfDay.AddHours(18);  
         var availableSlots = new List<TimeSpan>();
 
-        for (var slotTime = workStart; slotTime.AddMinutes(durationMinutes) <= workEnd; slotTime = slotTime.AddMinutes(10))
+        for (var localSlotTime = localWorkStart; localSlotTime.AddMinutes(durationMinutes) <= localWorkEnd; localSlotTime = localSlotTime.AddMinutes(10))
         {
             bool isFree = true;
-            var slotEndTime = slotTime.AddMinutes(durationMinutes);
+            var localSlotEndTime = localSlotTime.AddMinutes(durationMinutes);
+
+            var utcSlotStartTime = TimeZoneInfo.ConvertTimeToUtc(localSlotTime, clinicTimeZone);
+            var utcSlotEndTime = TimeZoneInfo.ConvertTimeToUtc(localSlotEndTime, clinicTimeZone);
 
             foreach (var app in existingAppointments)
             {
-                var appStartTime = app.TimeSlot;
+                var appStartTime = app.TimeSlot; 
 
                 int appDuration = app.Service.Category switch
                 {
@@ -200,7 +212,7 @@ public class AppointmentService : IAppointmentService
                 };
                 var appEndTime = appStartTime.AddMinutes(appDuration);
 
-                if (slotTime < appEndTime && slotEndTime > appStartTime)
+                if (utcSlotStartTime < appEndTime && utcSlotEndTime > appStartTime)
                 {
                     isFree = false;
                     break;
@@ -208,7 +220,7 @@ public class AppointmentService : IAppointmentService
             }
 
             if (isFree)
-                availableSlots.Add(slotTime.TimeOfDay);
+                availableSlots.Add(localSlotTime.TimeOfDay); 
         }
 
         return availableSlots;

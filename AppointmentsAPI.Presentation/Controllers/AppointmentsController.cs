@@ -78,9 +78,7 @@ public class AppointmentsController : ApiController
         [FromQuery] DateTime date,
         CancellationToken cancellationToken)
     {
-        var utcDate = DateTime.SpecifyKind(date.Date, DateTimeKind.Utc);
-
-        var slots = await _appointmentService.GetAvailableTimeSlotsAsync(doctorId, serviceId, utcDate, cancellationToken);
+        var slots = await _appointmentService.GetAvailableTimeSlotsAsync(doctorId, serviceId, date, cancellationToken);
         var formattedSlots = slots.Select(s => s.ToString(@"hh\:mm"));
 
         return Ok(ApiResponse<IEnumerable<string>>.Success(formattedSlots));
