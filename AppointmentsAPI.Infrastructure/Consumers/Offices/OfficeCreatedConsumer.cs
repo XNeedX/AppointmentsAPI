@@ -1,5 +1,6 @@
 ﻿using AppointmentsAPI.Application.Abstractions;
 using AppointmentsAPI.Application.DTOs;
+using AppointmentsAPI.Domain.Enums;
 using InnoClinic.Contracts.Events.Offices;
 using MassTransit;
 
@@ -21,7 +22,8 @@ public class OfficeCreatedConsumer : IConsumer<IOfficeCreatedEvent>
         var dto = new SyncOfficeDTO
         (
             msg.Id,
-            msg.Address
+            msg.Address,
+            (Status)msg.Status
         );
 
         await _officeService.CreateOfficeAsync(dto);

@@ -40,6 +40,7 @@ public static class DependencyInjection
         });
 
         services.AddScoped(typeof(IRepository<,>), typeof(Repository<,>));
+        services.AddScoped<IAppointmentRepository, AppointmentRepository>();
         services.AddScoped<IDoctorSyncService, DoctorSyncService>();
         services.AddScoped<IPatientSyncService, PatientSyncService>();
         services.AddScoped<IReceptionistSyncService, ReceptionistSyncService>();

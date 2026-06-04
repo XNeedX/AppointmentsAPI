@@ -21,7 +21,8 @@ public class OfficeSyncService : IOfficeSyncService
         var office = new Office
         {
             Id = dto.Id,
-            Address = dto.Address
+            Address = dto.Address,
+            Status = dto.Status,
         };
 
         await _officeRepository.AddAsync(office);

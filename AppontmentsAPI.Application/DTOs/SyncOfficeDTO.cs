@@ -1,4 +1,6 @@
-﻿namespace AppointmentsAPI.Application.DTOs;
+﻿using AppointmentsAPI.Domain.Enums;
 
-public record SyncOfficeDTO(Guid Id, string Address);
+namespace AppointmentsAPI.Application.DTOs;
+
+public record SyncOfficeDTO(Guid Id, string Address, Status Status);
 
