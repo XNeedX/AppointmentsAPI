@@ -56,6 +56,7 @@ public class AppointmentManagementService : IAppointmentManagementService
 
         var existingAppointments = await _appointmentRepository.FindByFilterAsync(
             a => a.DoctorId == dto.DoctorId && a.TimeSlot == cleanTimeSlot,
+            null,
             cancellationToken);
 
         if (existingAppointments.Any())
