@@ -5,7 +5,7 @@ using AppointmentsAPI.Presentation.Filters;
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddInfrastructureLayer(builder.Configuration);
-builder.Services.AddApplicationLayer();
+builder.Services.AddApplicationLayer(builder.Configuration);
 
 builder.Services.AddControllers(options =>
 {

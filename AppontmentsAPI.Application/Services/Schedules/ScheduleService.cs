@@ -1,10 +1,12 @@
 ﻿using AppointmentsAPI.Application.Abstractions.Repositories;
 using AppointmentsAPI.Application.Abstractions.Schedules;
+using AppointmentsAPI.Application.Configurations;
 using AppointmentsAPI.Application.DTOs.Appointment;
 using AppointmentsAPI.Application.DTOs.Schedule;
 using AppointmentsAPI.Application.Results;
 using AppointmentsAPI.Domain.Extensions;
 using AppointmentsAPI.Domain.Models;
+using Microsoft.Extensions.Options;
 
 namespace AppointmentsAPI.Application.Services.Schedules;
 
@@ -12,13 +14,16 @@ public class ScheduleService : IScheduleService
 {
     private readonly IAppointmentRepository _appointmentRepository;
     private readonly IRepository<Service, Guid> _serviceRepository;
+    private readonly InnoClinicOptions _innoClinicOptions;
 
     public ScheduleService(
         IAppointmentRepository appointmentRepository,
-        IRepository<Service, Guid> serviceRepository)
+        IRepository<Service, Guid> serviceRepository,
+        IOptions<InnoClinicOptions> innoClinicOptions)
     {
         _appointmentRepository = appointmentRepository;
         _serviceRepository = serviceRepository;
+        _innoClinicOptions = innoClinicOptions.Value;
     }
 
     public async Task<IEnumerable<TimeSpan>> GetAvailableTimeSlotsAsync(
@@ -32,7 +37,8 @@ public class ScheduleService : IScheduleService
 
         int durationMinutes = service.Category.GetDurationMinutes();
 
-        var clinicTimeZone = TimeZoneInfo.Local;
+        var timeZoneId = _innoClinicOptions.TimeZoneId;
+        var clinicTimeZone = TimeZoneInfo.FindSystemTimeZoneById(timeZoneId);
 
         var targetDate = DateTime.SpecifyKind(date.Date, DateTimeKind.Unspecified);
 
