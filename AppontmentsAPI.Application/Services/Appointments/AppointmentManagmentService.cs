@@ -3,9 +3,7 @@ using AppointmentsAPI.Application.Abstractions.Repositories;
 using AppointmentsAPI.Application.DTOs.Appointment;
 using AppointmentsAPI.Application.Results;
 using AppointmentsAPI.Domain.Enums;
-using AppointmentsAPI.Domain.Extensions;
 using AppointmentsAPI.Domain.Models;
-using Microsoft.EntityFrameworkCore;
 
 namespace AppointmentsAPI.Application.Services.Appointments;
 
@@ -118,34 +116,39 @@ public class AppointmentManagementService : IAppointmentManagementService
     public async Task<Result<IEnumerable<ViewAppointmentListDTO>>> GetFilteredAppointmentsAsync(GetAppointmentsFilterDTO filter, CancellationToken cancellationToken = default)
     {
         var appointments = await _appointmentRepository.FindByFilterAsync(
-        a =>
-            (!filter.Date.HasValue || a.Date.Date == filter.Date.Value.Date) &&
+            a =>
+                (!filter.Date.HasValue || a.Date.Date == filter.Date.Value.Date) &&
 
-            (string.IsNullOrEmpty(filter.DoctorName) ||
-                a.Doctor.FirstName.Contains(filter.DoctorName) ||
-                a.Doctor.LastName.Contains(filter.DoctorName)) &&
+                (string.IsNullOrEmpty(filter.DoctorName) ||
+                    a.Doctor.FirstName.Contains(filter.DoctorName) ||
+                    a.Doctor.LastName.Contains(filter.DoctorName)) &&
 
-            (string.IsNullOrEmpty(filter.ServiceName) || a.Service.Name.Contains(filter.ServiceName)) &&
+                (string.IsNullOrEmpty(filter.ServiceName) || a.Service.Name.Contains(filter.ServiceName)) &&
 
-            (!filter.IsApproved.HasValue || a.IsApproved == filter.IsApproved.Value) &&
+                (!filter.IsApproved.HasValue || a.IsApproved == filter.IsApproved.Value) &&
 
-            (!filter.OfficeId.HasValue || a.OfficeId == filter.OfficeId.Value),
+                (!filter.OfficeId.HasValue || a.OfficeId == filter.OfficeId.Value),
 
-        cancellationToken,
-        a => a.Doctor,
-        a => a.Patient,
-        a => a.Service
+            query => query.OrderBy(a => a.TimeSlot)
+                          .ThenBy(a => a.Doctor.LastName)
+                          .ThenBy(a => a.Doctor.FirstName)
+                          .ThenBy(a => a.Service.Name),
+
+            cancellationToken,
+            a => a.Doctor,
+            a => a.Patient,
+            a => a.Service
         );
 
-        var sortedAppointments = appointments
-        .OrderBy(a => a.TimeSlot)
-        .ThenBy(a => a.Doctor.LastName)
-        .ThenBy(a => a.Doctor.FirstName)
-        .ThenBy(a => a.Service.Name);
-
-        var responseList = sortedAppointments.Select(a =>
+        var responseList = appointments.Select(a =>
         {
-            int durationMinutes = a.Service.Category.GetDurationMinutes();
+            int durationMinutes = a.Service.Category switch
+            {
+                ServiceCategory.Analyses => 10,
+                ServiceCategory.Consultations => 20,
+                ServiceCategory.Diagnostics => 30,
+                _ => 10
+            };
 
             return new ViewAppointmentListDTO(
                 a.Id,

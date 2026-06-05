@@ -21,6 +21,7 @@ public class SpecializationsController : ApiController
     {
         var specializations = await _specializationRepository.FindByFilterAsync(
             s => s.Status == Status.Active,
+            null,
             cancellationToken);
 
         return Ok(ApiResponse<IEnumerable<Specialization>>.Success(specializations));

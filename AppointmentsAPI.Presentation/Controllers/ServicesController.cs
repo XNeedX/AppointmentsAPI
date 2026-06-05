@@ -21,6 +21,7 @@ public class ServicesController : ApiController
     {
         var services = await _serviceRepository.FindByFilterAsync(
             s => s.Status == Status.Active,
+            null,
             cancellationToken);
 
         return Ok(ApiResponse<IEnumerable<Service>>.Success(services));

@@ -44,6 +44,7 @@ public class ScheduleService : IScheduleService
 
         var existingAppointments = await _appointmentRepository.FindByFilterAsync(
             a => a.DoctorId == doctorId && a.TimeSlot >= utcStartOfDay && a.TimeSlot < utcEndOfDay,
+            null,
             cancellationToken,
             a => a.Service);
 
@@ -85,6 +86,7 @@ public class ScheduleService : IScheduleService
 
         var appointments = await _appointmentRepository.FindByFilterAsync(
             a => a.DoctorId == doctorId && a.Date.Date == targetDate,
+            query => query.OrderBy(a => a.TimeSlot), 
             cancellationToken,
             a => a.Patient,
             a => a.Service,
@@ -120,6 +122,7 @@ public class ScheduleService : IScheduleService
     {
         var appointments = await _appointmentRepository.FindByFilterAsync(
             a => a.PatientId == patientId,
+            query => query.OrderByDescending(a => a.TimeSlot), 
             cancellationToken,
             a => a.Doctor,
             a => a.Service,
@@ -154,12 +157,13 @@ public class ScheduleService : IScheduleService
        CancellationToken cancellationToken = default)
     {
         var appointments = await _appointmentRepository.FindByFilterAsync(
-            a => a.PatientId == patientId,
-            cancellationToken,
-            a => a.Doctor,
-            a => a.Service,
-            a => a.Result
-        );
+             a => a.PatientId == patientId,
+             query => query.OrderByDescending(a => a.TimeSlot), 
+             cancellationToken,
+             a => a.Doctor,
+             a => a.Service,
+             a => a.Result
+         );
 
         var sortedAppointments = appointments
             .OrderByDescending(a => a.Date.Date)

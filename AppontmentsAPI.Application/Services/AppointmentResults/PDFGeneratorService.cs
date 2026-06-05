@@ -1,8 +1,8 @@
-﻿using QuestPDF.Fluent;
-using QuestPDF.Infrastructure;
-using AppointmentsAPI.Application.Models;
+﻿using AppointmentsAPI.Application.Abstractions.AppointmentResults;
 using AppointmentsAPI.Application.Documents;
-using AppointmentsAPI.Application.Abstractions.AppointmentResults;
+using AppointmentsAPI.Application.Models;
+using QuestPDF.Fluent;
+using QuestPDF.Infrastructure;
 
 namespace AppointmentsAPI.Application.Services.AppointmentResults;
 

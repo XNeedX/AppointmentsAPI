@@ -12,7 +12,8 @@ public interface IAppointmentRepository
     void Delete(Appointment appointment, CancellationToken cancellationToken = default);
     void Update(Appointment appointment, CancellationToken cancellationToken = default);
     Task<IEnumerable<Appointment>> FindByFilterAsync(
-        Expression<Func<Appointment, bool>> expression, 
+        Expression<Func<Appointment, bool>> expression,
+        Func<IQueryable<Appointment>, IOrderedQueryable<Appointment>>? orderBy = null,
         CancellationToken cancellationToken = default, 
         params Expression<Func<Appointment, object>>[] includes);
 }

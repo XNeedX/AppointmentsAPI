@@ -21,6 +21,7 @@ public class OfficesController : ApiController
     {
         var offices = await _officeRepository.FindByFilterAsync(
             o => o.Status == Status.Active,
+            null,
             cancellationToken);
 
         return Ok(ApiResponse<IEnumerable<Office>>.Success(offices));

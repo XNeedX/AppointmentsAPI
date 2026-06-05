@@ -25,15 +25,21 @@ public class AppointmentRepository : IAppointmentRepository
     => _context.Appointments.Update(appointment);
 
     public async Task<IEnumerable<Appointment>> FindByFilterAsync(
-        Expression<Func<Appointment, bool>> expression, 
-        CancellationToken cancellationToken = default, 
-        params Expression<Func<Appointment, object>>[] includes)
+            Expression<Func<Appointment, bool>> expression,
+            Func<IQueryable<Appointment>, IOrderedQueryable<Appointment>>? orderBy = null,
+            CancellationToken cancellationToken = default,
+            params Expression<Func<Appointment, object>>[] includes)
     {
         IQueryable<Appointment> query = _context.Appointments.Where(expression).AsNoTracking();
 
         foreach (var include in includes)
         {
             query = query.Include(include);
+        }
+
+        if (orderBy != null)
+        {
+            return await orderBy(query).ToListAsync(cancellationToken);
         }
 
         return await query.ToListAsync(cancellationToken);

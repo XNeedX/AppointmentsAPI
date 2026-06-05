@@ -21,6 +21,7 @@ public class DoctorsController : ApiController
     {
         var doctors = await _doctorRepository.FindByFilterAsync(
             d => d.Status == Status.Active,
+            null,
             cancellationToken);
 
         return Ok(ApiResponse<IEnumerable<Doctor>>.Success(doctors));

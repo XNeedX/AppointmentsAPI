@@ -5,7 +5,9 @@ namespace AppointmentsAPI.Application.Abstractions.Repositories;
 public interface IRepository<T, K> where T : class
 {
     Task AddAsync(T entity, CancellationToken cancellationToken = default);
-    Task<IEnumerable<T>> FindByFilterAsync(Expression<Func<T, bool>> expression,
+    Task<IEnumerable<T>> FindByFilterAsync(
+        Expression<Func<T, bool>> expression,
+        Func<IQueryable<T>, IOrderedQueryable<T>>? orderBy = null,
         CancellationToken cancellationToken = default,
         params Expression<Func<T, object>>[] includes);
     Task<IEnumerable<T>> GetAllAsync(CancellationToken cancellationToken = default);

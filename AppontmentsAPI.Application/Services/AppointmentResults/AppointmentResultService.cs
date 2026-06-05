@@ -1,6 +1,5 @@
 ﻿using AppointmentsAPI.Application.Abstractions.AppointmentResults;
 using AppointmentsAPI.Application.Abstractions.Repositories;
-using AppointmentsAPI.Application.DTOs.Appointment;
 using AppointmentsAPI.Application.DTOs.AppointmentResult;
 using AppointmentsAPI.Application.Models;
 using AppointmentsAPI.Application.Results;
@@ -101,6 +100,7 @@ public class AppointmentResultService : IAppointmentResultService
     {
         var appointments = await _appointmentRepository.FindByFilterAsync(
             a => a.Id == appointmentId,
+            null,
             cancellationToken,
             a => a.Patient,
             a => a.Doctor,
