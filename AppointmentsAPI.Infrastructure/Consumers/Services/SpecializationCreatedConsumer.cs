@@ -1,4 +1,4 @@
-﻿using AppointmentsAPI.Application.Abstractions;
+﻿using AppointmentsAPI.Application.Abstractions.Sync;
 using AppointmentsAPI.Application.DTOs;
 using AppointmentsAPI.Domain.Enums;
 using InnoClinic.Contracts.Events.Services;

@@ -1,5 +1,5 @@
 ﻿using FluentValidation;
-using AppointmentsAPI.Application.DTOs;
+using AppointmentsAPI.Application.DTOs.Appointment;
 
 namespace AppointmentsAPI.Application;
 

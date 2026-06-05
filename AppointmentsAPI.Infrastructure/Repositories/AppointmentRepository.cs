@@ -1,4 +1,4 @@
-﻿using AppointmentsAPI.Application.Abstractions;
+﻿using AppointmentsAPI.Application.Abstractions.Repositories;
 using AppointmentsAPI.Domain.Models;
 using AppointmentsAPI.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
@@ -20,6 +20,9 @@ public class AppointmentRepository : IAppointmentRepository
 
     public void Delete(Appointment appointment, CancellationToken cancellationToken = default) 
         => _context.Appointments.Remove(appointment);
+
+    public void Update(Appointment appointment, CancellationToken cancellationToken = default)
+    => _context.Appointments.Update(appointment);
 
     public async Task<IEnumerable<Appointment>> FindByFilterAsync(
         Expression<Func<Appointment, bool>> expression, 

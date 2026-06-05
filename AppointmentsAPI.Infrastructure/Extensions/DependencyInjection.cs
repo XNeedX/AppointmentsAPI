@@ -1,6 +1,12 @@
-﻿using AppointmentsAPI.Application.Abstractions;
-using AppointmentsAPI.Application.Services;
-using AppointmentsAPI.Application.SyncServices;
+﻿using AppointmentsAPI.Application.Abstractions.AppointmentResults;
+using AppointmentsAPI.Application.Abstractions.Appointments;
+using AppointmentsAPI.Application.Abstractions.Repositories;
+using AppointmentsAPI.Application.Abstractions.Schedules;
+using AppointmentsAPI.Application.Abstractions.Sync;
+using AppointmentsAPI.Application.Services.AppointmentResults;
+using AppointmentsAPI.Application.Services.Appointments;
+using AppointmentsAPI.Application.Services.Schedules;
+using AppointmentsAPI.Application.Services.SyncServices;
 using AppointmentsAPI.Domain.Models;
 using AppointmentsAPI.Infrastructure.Consumers.Services;
 using AppointmentsAPI.Infrastructure.Data;
@@ -48,6 +54,10 @@ public static class DependencyInjection
         services.AddScoped<IOfficeSyncService, OfficeSyncService>();
         services.AddScoped<ISpecializationSyncService, SpecializationSyncService>();
         services.AddScoped<IPDFGeneratorService, PDFGeneratorService>();
+
+        services.AddScoped<IAppointmentManagementService, AppointmentManagementService>();
+        services.AddScoped<IAppointmentResultService, AppointmentResultService>();
+        services.AddScoped<IScheduleService, ScheduleService>();
 
         return services;
     }

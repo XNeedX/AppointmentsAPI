@@ -1,5 +1,6 @@
-﻿using AppointmentsAPI.Application.Abstractions;
-using AppointmentsAPI.Application.DTOs;
+﻿using AppointmentsAPI.Application.Abstractions.Appointments;
+using AppointmentsAPI.Application.DTOs.Appointment;
+using AppointmentsAPI.Application.DTOs.AppointmentResult;
 using AppointmentsAPI.Presentation.Responses;
 using Microsoft.AspNetCore.Mvc;
 

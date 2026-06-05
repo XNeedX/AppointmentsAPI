@@ -1,4 +1,4 @@
-﻿using AppointmentsAPI.Application.Abstractions;
+﻿using AppointmentsAPI.Application.Abstractions.Repositories;
 using AppointmentsAPI.Domain.Enums;
 using AppointmentsAPI.Domain.Models;
 using AppointmentsAPI.Presentation.Responses;
