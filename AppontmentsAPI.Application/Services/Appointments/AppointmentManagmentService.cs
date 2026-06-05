@@ -1,10 +1,11 @@
 ﻿using AppointmentsAPI.Application.Abstractions.Appointments;
 using AppointmentsAPI.Application.Abstractions.Repositories;
-using AppointmentsAPI.Application.DTOs;
 using AppointmentsAPI.Application.DTOs.Appointment;
 using AppointmentsAPI.Application.Results;
 using AppointmentsAPI.Domain.Enums;
+using AppointmentsAPI.Domain.Extensions;
 using AppointmentsAPI.Domain.Models;
+using Microsoft.EntityFrameworkCore;
 
 namespace AppointmentsAPI.Application.Services.Appointments;
 
@@ -54,6 +55,13 @@ public class AppointmentManagementService : IAppointmentManagementService
         var cleanTimeSlot = new DateTime(
         dto.TimeSlot.Year, dto.TimeSlot.Month, dto.TimeSlot.Day,
         dto.TimeSlot.Hour, dto.TimeSlot.Minute, 0, dto.TimeSlot.Kind);
+
+        var existingAppointments = await _appointmentRepository.FindByFilterAsync(
+            a => a.DoctorId == dto.DoctorId && a.TimeSlot == cleanTimeSlot,
+            cancellationToken);
+
+        if (existingAppointments.Any())
+            return AppointmentErrors.InvalidTimeSlot;
 
         var appointment = new Appointment
         {
@@ -137,13 +145,7 @@ public class AppointmentManagementService : IAppointmentManagementService
 
         var responseList = sortedAppointments.Select(a =>
         {
-            int durationMinutes = a.Service.Category switch
-            {
-                ServiceCategory.Analyses => 10,
-                ServiceCategory.Consultations => 20,
-                ServiceCategory.Diagnostics => 30,
-                _ => 10
-            };
+            int durationMinutes = a.Service.Category.GetDurationMinutes();
 
             return new ViewAppointmentListDTO(
                 a.Id,

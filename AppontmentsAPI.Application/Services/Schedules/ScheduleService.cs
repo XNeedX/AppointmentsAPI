@@ -1,10 +1,9 @@
 ﻿using AppointmentsAPI.Application.Abstractions.Repositories;
 using AppointmentsAPI.Application.Abstractions.Schedules;
-using AppointmentsAPI.Application.DTOs;
 using AppointmentsAPI.Application.DTOs.Appointment;
 using AppointmentsAPI.Application.DTOs.Schedule;
 using AppointmentsAPI.Application.Results;
-using AppointmentsAPI.Domain.Enums;
+using AppointmentsAPI.Domain.Extensions;
 using AppointmentsAPI.Domain.Models;
 
 namespace AppointmentsAPI.Application.Services.Schedules;
@@ -31,14 +30,7 @@ public class ScheduleService : IScheduleService
         var service = await _serviceRepository.GetByIdAsync(serviceId, cancellationToken);
         if (service == null) return Enumerable.Empty<TimeSpan>();
 
-        int requiredSlots = service.Category switch
-        {
-            ServiceCategory.Analyses => 1,
-            ServiceCategory.Consultations => 2,
-            ServiceCategory.Diagnostics => 3,
-            _ => 1
-        };
-        int durationMinutes = requiredSlots * 10;
+        int durationMinutes = service.Category.GetDurationMinutes();
 
         var clinicTimeZone = TimeZoneInfo.Local;
 
@@ -69,13 +61,8 @@ public class ScheduleService : IScheduleService
             {
                 var appStartTime = app.TimeSlot;
 
-                int appDuration = app.Service.Category switch
-                {
-                    ServiceCategory.Analyses => 10,
-                    ServiceCategory.Consultations => 20,
-                    ServiceCategory.Diagnostics => 30,
-                    _ => 10
-                };
+                int appDuration = app.Service.Category.GetDurationMinutes();
+
                 var appEndTime = appStartTime.AddMinutes(appDuration);
 
                 if (utcSlotStartTime < appEndTime && utcSlotEndTime > appStartTime)
@@ -108,13 +95,7 @@ public class ScheduleService : IScheduleService
             .OrderBy(a => a.TimeSlot)
             .Select(a =>
             {
-                int durationMinutes = a.Service.Category switch
-                {
-                    ServiceCategory.Analyses => 10,
-                    ServiceCategory.Consultations => 20,
-                    ServiceCategory.Diagnostics => 30,
-                    _ => 10
-                };
+                int durationMinutes = a.Service.Category.GetDurationMinutes();
 
                 var patientName = $"{a.Patient.LastName} {a.Patient.FirstName} {a.Patient.MiddleName}".Trim();
 
@@ -151,13 +132,7 @@ public class ScheduleService : IScheduleService
 
         var result = sortedAppointments.Select(a =>
         {
-            int durationMinutes = a.Service.Category switch
-            {
-                ServiceCategory.Analyses => 10,
-                ServiceCategory.Consultations => 20,
-                ServiceCategory.Diagnostics => 30,
-                _ => 10
-            };
+            int durationMinutes = a.Service.Category.GetDurationMinutes();
 
             var doctorFullName = $"{a.Doctor.LastName} {a.Doctor.FirstName} {a.Doctor.MiddleName}".Trim();
 
@@ -192,13 +167,7 @@ public class ScheduleService : IScheduleService
 
         var result = sortedAppointments.Select(a =>
         {
-            int durationMinutes = a.Service.Category switch
-            {
-                ServiceCategory.Analyses => 10,
-                ServiceCategory.Consultations => 20,
-                ServiceCategory.Diagnostics => 30,
-                _ => 10
-            };
+            int durationMinutes = a.Service.Category.GetDurationMinutes();
 
             var doctorFullName = $"{a.Doctor.LastName} {a.Doctor.FirstName} {a.Doctor.MiddleName}".Trim();
 
