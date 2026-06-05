@@ -1,5 +1,6 @@
 ﻿using AppointmentsAPI.Application.Abstractions.Sync;
 using AppointmentsAPI.Application.DTOs;
+using AppointmentsAPI.Application.DTOs.Sync;
 using AppointmentsAPI.Domain.Enums;
 using InnoClinic.Contracts.Events.Offices;
 using MassTransit;
