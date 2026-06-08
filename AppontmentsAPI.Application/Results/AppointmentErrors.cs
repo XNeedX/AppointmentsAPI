@@ -62,4 +62,8 @@ public static class AppointmentErrors
         "AppointmentResult.NotFound",
         "Appointment result not found.",
         ErrorType.NotFound);
+    public static readonly Error NotApproved = new(
+        "Appointment.NotApproved",
+        "This appointment is not approved yet.",
+        ErrorType.Conflict);
 }

@@ -39,6 +39,8 @@ public class AppointmentResultService : IAppointmentResultService
 
         if (appointment.Result != null) return AppointmentErrors.ResultAlreadyExists;
 
+        if (appointment.IsApproved == false) return AppointmentErrors.NotApproved;
+
         var result = new AppointmentResult
         {
             Id = Guid.NewGuid(),
