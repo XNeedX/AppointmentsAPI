@@ -1,5 +1,11 @@
-﻿using AppointmentsAPI.Application.Abstractions.Sync;
+﻿using AppointmentsAPI.Application.Abstractions.AppointmentResults;
+using AppointmentsAPI.Application.Abstractions.Appointments;
+using AppointmentsAPI.Application.Abstractions.Schedules;
+using AppointmentsAPI.Application.Abstractions.Sync;
 using AppointmentsAPI.Application.Configurations;
+using AppointmentsAPI.Application.Services.AppointmentResults;
+using AppointmentsAPI.Application.Services.Appointments;
+using AppointmentsAPI.Application.Services.Schedules;
 using AppointmentsAPI.Application.Services.SyncServices;
 using FluentValidation;
 using Microsoft.Extensions.Configuration;
@@ -13,7 +19,16 @@ public static class DependencyInjection
     {
         services.Configure<InnoClinicOptions>(configuration.GetSection(InnoClinicOptions.SectionName));
 
-        services.AddScoped<IServiceSyncService, ServiceSyncService>();
+        services.AddScoped<IDoctorSyncService, DoctorSyncService>();
+        services.AddScoped<IPatientSyncService, PatientSyncService>();
+        services.AddScoped<IReceptionistSyncService, ReceptionistSyncService>();
+        services.AddScoped<IServiceSyncService, ServiceSyncService>(); 
+        services.AddScoped<IOfficeSyncService, OfficeSyncService>();
+        services.AddScoped<ISpecializationSyncService, SpecializationSyncService>();
+
+        services.AddScoped<IAppointmentManagementService, AppointmentManagementService>();
+        services.AddScoped<IAppointmentResultService, AppointmentResultService>();
+        services.AddScoped<IScheduleService, ScheduleService>();
 
         services.AddValidatorsFromAssembly(typeof(DependencyInjection).Assembly);
 

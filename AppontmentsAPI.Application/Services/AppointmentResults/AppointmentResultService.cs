@@ -1,11 +1,14 @@
 ﻿using AppointmentsAPI.Application.Abstractions.AppointmentResults;
 using AppointmentsAPI.Application.Abstractions.Repositories;
+using AppointmentsAPI.Application.Configurations;
 using AppointmentsAPI.Application.DTOs.AppointmentResult;
 using AppointmentsAPI.Application.Models;
 using AppointmentsAPI.Application.Results;
 using AppointmentsAPI.Domain.Models;
 using InnoClinic.Contracts.Events.Appointments;
 using MassTransit;
+using MassTransit.Configuration;
+using Microsoft.Extensions.Options;
 
 namespace AppointmentsAPI.Application.Services.AppointmentResults;
 
@@ -15,17 +18,20 @@ public class AppointmentResultService : IAppointmentResultService
     private readonly IRepository<AppointmentResult, Guid> _appointmentResultRepository;
     private readonly IPDFGeneratorService _pdfGeneratorService;
     private readonly IPublishEndpoint _publishEndpoint;
+    private readonly InnoClinicOptions _innoClinicOptions;
 
     public AppointmentResultService(
         IAppointmentRepository appointmentRepository,
         IRepository<AppointmentResult, Guid> resultRepository,
         IPDFGeneratorService pdfGeneratorService,
-        IPublishEndpoint publishEndpoint)
+        IPublishEndpoint publishEndpoint,
+        IOptions<InnoClinicOptions> innoClinicOptions)
     {
         _appointmentRepository = appointmentRepository;
         _appointmentResultRepository = resultRepository;
         _pdfGeneratorService = pdfGeneratorService;
         _publishEndpoint = publishEndpoint;
+        _innoClinicOptions = innoClinicOptions.Value;
     }
 
     public async Task<Result> CreateAppointmentResultAsync(
@@ -33,7 +39,16 @@ public class AppointmentResultService : IAppointmentResultService
             CreateAppointmentResultDTO dto,
             CancellationToken cancellationToken = default)
     {
-        var appointment = await _appointmentRepository.GetByIdAsync(appointmentId, cancellationToken);
+        var appointments = await _appointmentRepository.FindByFilterAsync(
+            a => a.Id == appointmentId,
+            null,
+            cancellationToken,
+            a => a.Patient,
+            a => a.Doctor,
+            a => a.Result
+        );
+
+        var appointment = appointments.FirstOrDefault();
 
         if (appointment == null) return AppointmentErrors.NotFound;
 
@@ -53,19 +68,22 @@ public class AppointmentResultService : IAppointmentResultService
         await _appointmentResultRepository.AddAsync(result, cancellationToken);
         await _appointmentResultRepository.SaveChangesAsync(cancellationToken);
 
+        var clinicTimeZone = TimeZoneInfo.FindSystemTimeZoneById(_innoClinicOptions.TimeZoneId);
+
+        var localTimeSlot = TimeZoneInfo.ConvertTimeFromUtc(appointment.TimeSlot, clinicTimeZone);
+
         var pdfModel = new AppointmentResultPDF
         {
             PatientFullName = $"{appointment.Patient.LastName} {appointment.Patient.FirstName}",
             DoctorFullName = $"{appointment.Doctor.LastName} {appointment.Doctor.FirstName}",
             Specialization = appointment.Doctor.Specialization,
-            Date = appointment.Date,
+            Date = localTimeSlot,
             Complaints = dto.Complaints,
             Conclusion = dto.Conclusion,
             Recommendations = dto.Recommendations
         };
 
         var pdfBytes = _pdfGeneratorService.GenerateAppointmentResultPdf(pdfModel);
-        var stream = new MemoryStream(pdfBytes);
 
         await _publishEndpoint.Publish<ISaveAppointmentResultDocumentEvent>(new
         {

@@ -47,17 +47,8 @@ public static class DependencyInjection
 
         services.AddScoped(typeof(IRepository<,>), typeof(Repository<,>));
         services.AddScoped<IAppointmentRepository, AppointmentRepository>();
-        services.AddScoped<IDoctorSyncService, DoctorSyncService>();
-        services.AddScoped<IPatientSyncService, PatientSyncService>();
-        services.AddScoped<IReceptionistSyncService, ReceptionistSyncService>();
-        services.AddScoped<IServiceSyncService, ServiceSyncService>();
-        services.AddScoped<IOfficeSyncService, OfficeSyncService>();
-        services.AddScoped<ISpecializationSyncService, SpecializationSyncService>();
+        
         services.AddScoped<IPDFGeneratorService, PDFGeneratorService>();
-
-        services.AddScoped<IAppointmentManagementService, AppointmentManagementService>();
-        services.AddScoped<IAppointmentResultService, AppointmentResultService>();
-        services.AddScoped<IScheduleService, ScheduleService>();
 
         return services;
     }
