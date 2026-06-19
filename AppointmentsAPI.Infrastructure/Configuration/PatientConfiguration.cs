@@ -29,9 +29,13 @@ public class PatientConfiguration : IEntityTypeConfiguration<Patient>
         builder.Property(p => p.MiddleName)
             .HasMaxLength(100);
 
+        builder.Property(p => p.Email)
+            .IsRequired()
+            .HasMaxLength(150);
+
         builder.Property(p => p.PhoneNumber)
             .IsRequired()
-            .HasMaxLength(20);
+            .HasMaxLength(150);
 
         builder.Property(p => p.DateOfBirth)
             .IsRequired()

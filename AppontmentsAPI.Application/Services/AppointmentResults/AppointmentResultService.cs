@@ -1,7 +1,9 @@
 ﻿using AppointmentsAPI.Application.Abstractions.AppointmentResults;
+using AppointmentsAPI.Application.Abstractions.NotificationService;
 using AppointmentsAPI.Application.Abstractions.Repositories;
 using AppointmentsAPI.Application.Configurations;
 using AppointmentsAPI.Application.DTOs.AppointmentResult;
+using AppointmentsAPI.Application.Messages;
 using AppointmentsAPI.Application.Models;
 using AppointmentsAPI.Application.Results;
 using AppointmentsAPI.Domain.Models;
@@ -19,18 +21,21 @@ public class AppointmentResultService : IAppointmentResultService
     private readonly IPDFGeneratorService _pdfGeneratorService;
     private readonly IPublishEndpoint _publishEndpoint;
     private readonly InnoClinicOptions _innoClinicOptions;
+    private readonly INotificationService _notificationService;
 
     public AppointmentResultService(
         IAppointmentRepository appointmentRepository,
         IRepository<AppointmentResult, Guid> resultRepository,
         IPDFGeneratorService pdfGeneratorService,
         IPublishEndpoint publishEndpoint,
-        IOptions<InnoClinicOptions> innoClinicOptions)
+        IOptions<InnoClinicOptions> innoClinicOptions,
+        INotificationService notificationService)
     {
         _appointmentRepository = appointmentRepository;
         _appointmentResultRepository = resultRepository;
         _pdfGeneratorService = pdfGeneratorService;
         _publishEndpoint = publishEndpoint;
+        _notificationService = notificationService;
         _innoClinicOptions = innoClinicOptions.Value;
     }
 
@@ -91,6 +96,19 @@ public class AppointmentResultService : IAppointmentResultService
             PdfBytes = pdfBytes,
             ContentType = "application/pdf"
         }, cancellationToken);
+
+        if(!string.IsNullOrEmpty(appointment.Patient.Email))
+        {
+            var fileName = $"AppointmentResult_{appointment.Date:yyyyMMdd}.pdf";
+            var patientName = $"{appointment.Patient.FirstName} {appointment.Patient.LastName}";
+
+            await _publishEndpoint.Publish(new SendAppointmentResultEmailEvent(
+                appointment.Patient.Email,
+                patientName,
+                pdfBytes,
+                fileName
+            ));
+        }
 
         return Result.Success();
     }

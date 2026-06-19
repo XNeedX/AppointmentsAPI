@@ -23,6 +23,7 @@ public class PatientSyncService : IPatientSyncService
         {
             Id = dto.Id,
             AccountId = dto.AccountId,
+            Email = dto.Email,
             FirstName = dto.FirstName,
             LastName = dto.LastName,
             MiddleName = dto.MiddleName,
@@ -40,6 +41,7 @@ public class PatientSyncService : IPatientSyncService
 
         if (patient != null)
         {
+            patient.Email = dto.Email;
             patient.FirstName = dto.FirstName;
             patient.LastName = dto.LastName;
             patient.MiddleName = dto.MiddleName;

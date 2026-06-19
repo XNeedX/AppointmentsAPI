@@ -23,6 +23,7 @@ public class PatientUpdatedConsumer : IConsumer<IPatientUpdatedEvent>
         (
             msg.Id,
             msg.AccountId,
+            msg.Email,
             msg.FirstName,
             msg.LastName,
             msg.MiddleName,
