@@ -22,6 +22,7 @@ public class AppointmentResultService : IAppointmentResultService
     private readonly IPublishEndpoint _publishEndpoint;
     private readonly InnoClinicOptions _innoClinicOptions;
     private readonly INotificationService _notificationService;
+    private readonly IMessageScheduler _messageScheduler;
 
     public AppointmentResultService(
         IAppointmentRepository appointmentRepository,
@@ -29,7 +30,8 @@ public class AppointmentResultService : IAppointmentResultService
         IPDFGeneratorService pdfGeneratorService,
         IPublishEndpoint publishEndpoint,
         IOptions<InnoClinicOptions> innoClinicOptions,
-        INotificationService notificationService)
+        INotificationService notificationService,
+        IMessageScheduler messageScheduler)
     {
         _appointmentRepository = appointmentRepository;
         _appointmentResultRepository = resultRepository;
@@ -37,6 +39,7 @@ public class AppointmentResultService : IAppointmentResultService
         _publishEndpoint = publishEndpoint;
         _notificationService = notificationService;
         _innoClinicOptions = innoClinicOptions.Value;
+        _messageScheduler = messageScheduler;
     }
 
     public async Task<Result> CreateAppointmentResultAsync(
@@ -109,6 +112,22 @@ public class AppointmentResultService : IAppointmentResultService
                 fileName
             ));
         }
+
+        DateTime sendTime = appointment.TimeSlot.AddDays(-1);
+        DateTime sendTimeUtc = TimeZoneInfo.ConvertTimeToUtc(sendTime);
+
+        await _messageScheduler.ScheduleSend(
+            new Uri("queue:send-appointment-reminder"),
+            sendTimeUtc,
+            new SendAppointmentReminderEvent(
+                appointment.Patient.Email,
+                $"{appointment.Patient.FirstName} {appointment.Patient.LastName}",
+                appointment.Service.Name,
+                $"{appointment.Doctor.FirstName} {appointment.Doctor.LastName}", 
+                appointment.Date, 
+                appointment.TimeSlot
+            )
+        ); 
 
         return Result.Success();
     }

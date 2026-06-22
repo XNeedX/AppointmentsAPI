@@ -30,6 +30,8 @@ public static class DependencyInjection
         services.AddMassTransit(busConfigurator =>
         {
             busConfigurator.SetKebabCaseEndpointNameFormatter();
+            
+            busConfigurator.AddDelayedMessageScheduler();
 
             busConfigurator.AddConsumers(Assembly.GetExecutingAssembly());
 
@@ -40,6 +42,8 @@ public static class DependencyInjection
                     h.Username(configuration["RabbitMQ:Username"]);
                     h.Password(configuration["RabbitMQ:Password"]);
                 });
+
+                cfg.UseDelayedMessageScheduler();
 
                 cfg.ConfigureEndpoints(context);
             });
