@@ -1,4 +1,4 @@
-﻿using AppointmentsAPI.Application.Abstractions;
+﻿using AppointmentsAPI.Application.Abstractions.Repositories;
 using AppointmentsAPI.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
 using System.Linq.Expressions;
@@ -19,23 +19,28 @@ internal class Repository<T, K> : IRepository<T, K>
 
     public async Task AddAsync(T entity, CancellationToken cancellationToken = default) => await _dbset.AddAsync(entity);
 
-    public async Task<IEnumerable<T>> FindByFilterAsync(Expression<Func<T, bool>> expression, 
-        CancellationToken cancellationToken = default, 
+    public async Task<IEnumerable<T>> FindByFilterAsync(
+        Expression<Func<T, bool>> expression,
+        Func<IQueryable<T>, IOrderedQueryable<T>>? orderBy = null,
+        CancellationToken cancellationToken = default,
         params Expression<Func<T, object>>[] includes)
     {
         IQueryable<T> query = _dbset.Where(expression).AsNoTracking();
 
         foreach (var include in includes)
-        {
             query = query.Include(include);
-        }
 
-        return await query.ToListAsync();
+        if (orderBy != null)
+            return await orderBy(query).ToListAsync(cancellationToken);
+
+        return await query.ToListAsync(cancellationToken);
     }
 
     public async Task<IEnumerable<T>> GetAllAsync(CancellationToken cancellationToken = default) => await _dbset.AsNoTracking().ToListAsync();
 
-    public Task<T?> GetByIdAsync(K id, CancellationToken cancellationToken = default) => _dbset.FindAsync(id).AsTask();
+    public async Task<T?> GetByIdAsync(K id, CancellationToken cancellationToken = default) => await _dbset.FindAsync(id).AsTask();
 
-    public Task SaveChangesAsync(CancellationToken cancellationToken = default) => _dbContext.SaveChangesAsync();
+    public async Task SaveChangesAsync(CancellationToken cancellationToken = default) => await _dbContext.SaveChangesAsync();
+
+    public void Delete(T entity, CancellationToken cancellationToken = default) => _dbset.Remove(entity);
 }

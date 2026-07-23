@@ -1,5 +1,7 @@
 <Solution>
-  <Folder Name="/Элементы решения/" />
+  <Folder Name="/Элементы решения/">
+    <File Path="Dockerfile" />
+  </Folder>
   <Project Path="AppointmentsAPI.Domain/AppointmentsAPI.Domain.csproj" />
   <Project Path="AppointmentsAPI.Infrastructure/AppointmentsAPI.Infrastructure.csproj" />
   <Project Path="AppointmentsAPI.Presentation/AppointmentsAPI.Presentation.csproj" />

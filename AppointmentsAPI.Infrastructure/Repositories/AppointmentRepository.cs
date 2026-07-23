@@ -1,7 +1,8 @@
-﻿using AppointmentsAPI.Application.Abstractions;
+﻿using AppointmentsAPI.Application.Abstractions.Repositories;
 using AppointmentsAPI.Domain.Models;
 using AppointmentsAPI.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
+using System.Linq.Expressions;
 
 namespace AppointmentsAPI.Infrastructure.Repositories;
 
@@ -16,6 +17,33 @@ public class AppointmentRepository : IAppointmentRepository
 
     public async Task AddAsync(Appointment appointment, CancellationToken cancellationToken = default) 
         => await _context.Appointments.AddAsync(appointment, cancellationToken);
+
+    public void Delete(Appointment appointment, CancellationToken cancellationToken = default) 
+        => _context.Appointments.Remove(appointment);
+
+    public void Update(Appointment appointment, CancellationToken cancellationToken = default)
+    => _context.Appointments.Update(appointment);
+
+    public async Task<IEnumerable<Appointment>> FindByFilterAsync(
+            Expression<Func<Appointment, bool>> expression,
+            Func<IQueryable<Appointment>, IOrderedQueryable<Appointment>>? orderBy = null,
+            CancellationToken cancellationToken = default,
+            params Expression<Func<Appointment, object>>[] includes)
+    {
+        IQueryable<Appointment> query = _context.Appointments.Where(expression).AsNoTracking();
+
+        foreach (var include in includes)
+        {
+            query = query.Include(include);
+        }
+
+        if (orderBy != null)
+        {
+            return await orderBy(query).ToListAsync(cancellationToken);
+        }
+
+        return await query.ToListAsync(cancellationToken);
+    }
 
     public async Task<IEnumerable<Appointment>> GetAllAsync(CancellationToken cancellationToken = default) 
         => await _context.Appointments.AsNoTracking().ToListAsync(cancellationToken);

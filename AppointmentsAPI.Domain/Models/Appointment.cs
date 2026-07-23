@@ -7,6 +7,18 @@ public class Appointment
     public Guid ServiceId { get; set; }
     public Service Service { get; set; }
 
-    public DateTime Date { get; set; } = DateTime.Now;
+    public Guid DoctorId { get; set; }
+    public Doctor Doctor { get; set; }
+
+    public Guid OfficeId { get; set; }
+    public Office Office { get; set; }
+
+    public Guid PatientId { get; set; }
+    public Patient Patient { get; set; }
+
+    public DateTime Date { get; set; } = DateTime.UtcNow;
     public DateTime TimeSlot { get; set; }
+
+    public bool IsApproved { get; set; } = false;
+    public AppointmentResult? Result { get; set; }
 }
