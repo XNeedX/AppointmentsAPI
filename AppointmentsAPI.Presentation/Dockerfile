@@ -24,7 +24,7 @@ COPY ["AppointmentsAPI.Infrastructure/AppointmentsAPI.Infrastructure.csproj", "A
 COPY ["AppointmentsAPI.Domain/AppointmentsAPI.Domain.csproj", "AppointmentsAPI.Domain/"]
 COPY ["nuget.config", "./"]
 
-RUN dotnet nuget add source "https://nuget.pkg.github.com/XNeedX/index.json" \
+RUN dotnet nuget update source "https://nuget.pkg.github.com/XNeedX/index.json" \
     --name "github" \
     --username "$GITHUB_USERNAME" \
     --password "$GITHUB_PASSWORD" \

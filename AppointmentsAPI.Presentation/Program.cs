@@ -1,3 +1,4 @@
+using AppointmentsApi.Extensions;
 using AppointmentsAPI.Application.Extensions;
 using AppointmentsAPI.Infrastructure.Extensions;
 using AppointmentsAPI.Presentation.Filters;
@@ -13,20 +14,12 @@ builder.Services.AddControllers(options =>
 });
 
 builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen();
+
+builder.Services.AddKeycloakAuth(builder.Configuration);
+builder.Services.AddSwaggerWithAuth(builder.Configuration);
 
 var app = builder.Build();
 
-if (app.Environment.IsDevelopment())
-{
-    app.UseSwagger();
-    app.UseSwaggerUI();
-}
-
-app.UseHttpsRedirection();
-
-app.UseAuthorization();
-
-app.MapControllers();
+app.UseMiddlewarePipeline();
 
 app.Run();

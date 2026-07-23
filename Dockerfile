@@ -3,7 +3,7 @@ WORKDIR /app
 EXPOSE 8080
 
 USER root
-RUN apk add --no-cache icu-libs
+RUN apk add --no-cache icu-libs tzdata
 ENV DOTNET_SYSTEM_GLOBALIZATION_INVARIANT=false
 
 USER app
