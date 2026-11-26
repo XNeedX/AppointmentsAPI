@@ -1,7 +1,10 @@
-﻿using AppointmentsAPI.Application.Abstractions.Repositories;
+using AppointmentsAPI.Application.Abstractions.Repositories;
+using AppointmentsAPI.Application.Results;
 using AppointmentsAPI.Domain.Models;
 using AppointmentsAPI.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
+using Npgsql;
+using System.Data;
 using System.Linq.Expressions;
 
 namespace AppointmentsAPI.Infrastructure.Repositories;
@@ -13,6 +16,37 @@ public class AppointmentRepository : IAppointmentRepository
     public AppointmentRepository(AppointmentsDbContext context)
     {
         _context = context;
+    }
+
+    public async Task<Result> SaveSchedulingChangeAsync(
+        Func<Task<Result>> change, Error concurrencyError, CancellationToken cancellationToken)
+    {
+        await using var transaction = await _context.Database.BeginTransactionAsync(
+            IsolationLevel.Serializable, cancellationToken);
+
+        try
+        {
+            var result = await change();
+            if (result.IsFailure) return result;
+
+            await _context.SaveChangesAsync(cancellationToken);
+            await transaction.CommitAsync(cancellationToken);
+            return result;
+        }
+        catch (DbUpdateException exception) when (exception.InnerException is PostgresException
+            { SqlState: PostgresErrorCodes.SerializationFailure })
+        {
+            return Result.Failure(concurrencyError);
+        }
+        catch (DbUpdateException exception) when (exception.InnerException is PostgresException
+            { SqlState: PostgresErrorCodes.UniqueViolation, ConstraintName: "IX_AppointmentResults_AppointmentId" })
+        {
+            return Result.Failure(concurrencyError);
+        }
+        catch (PostgresException exception) when (exception.SqlState == PostgresErrorCodes.SerializationFailure)
+        {
+            return Result.Failure(concurrencyError);
+        }
     }
 
     public async Task AddAsync(Appointment appointment, CancellationToken cancellationToken = default) 

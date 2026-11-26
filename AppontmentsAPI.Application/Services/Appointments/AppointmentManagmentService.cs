@@ -1,9 +1,13 @@
-﻿using AppointmentsAPI.Application.Abstractions.Appointments;
+using AppointmentsAPI.Application.Abstractions.Appointments;
 using AppointmentsAPI.Application.Abstractions.Repositories;
+using AppointmentsAPI.Application.Abstractions.Schedules;
+using AppointmentsAPI.Application.Configurations;
 using AppointmentsAPI.Application.DTOs.Appointment;
 using AppointmentsAPI.Application.Results;
 using AppointmentsAPI.Domain.Enums;
 using AppointmentsAPI.Domain.Models;
+using AppointmentsAPI.Domain.Extensions;
+using Microsoft.Extensions.Options;
 
 namespace AppointmentsAPI.Application.Services.Appointments;
 
@@ -15,18 +19,36 @@ public class AppointmentManagementService : IAppointmentManagementService
     private readonly IRepository<Patient, Guid> _patientRepository;
     private readonly IRepository<Service, Guid> _serviceRepository;
 
+    private readonly IScheduleService _scheduleService;
+    private readonly TimeZoneInfo _clinicTimeZone;
+
     public AppointmentManagementService(
         IAppointmentRepository appointmentRepository,
         IRepository<Doctor, Guid> doctorRepository,
         IRepository<Office, Guid> officeRepository,
         IRepository<Patient, Guid> patientRepository,
-        IRepository<Service, Guid> serviceRepository)
+        IRepository<Service, Guid> serviceRepository,
+        IScheduleService scheduleService,
+        IOptions<InnoClinicOptions> options)
     {
         _appointmentRepository = appointmentRepository;
         _doctorRepository = doctorRepository;
         _officeRepository = officeRepository;
         _patientRepository = patientRepository;
         _serviceRepository = serviceRepository;
+        _scheduleService = scheduleService;
+        _clinicTimeZone = TimeZoneInfo.FindSystemTimeZoneById(options.Value.TimeZoneId);
+    }
+
+    public async Task<Result> CreateOwnAppointmentAsync(
+        CreateAppointmentDTO dto, string accountId, CancellationToken cancellationToken = default)
+    {
+        var patients = await _patientRepository.FindByFilterAsync(
+            patient => patient.AccountId == accountId, cancellationToken: cancellationToken);
+        var matches = patients.Take(2).ToArray();
+        if (matches.Length != 1) return AppointmentErrors.PatientNotFound;
+
+        return await CreateAppointmentAsync(dto, matches[0].Id, cancellationToken);
     }
 
     public async Task<Result> CreateAppointmentAsync(
@@ -50,54 +72,82 @@ public class AppointmentManagementService : IAppointmentManagementService
         if (service == null) return AppointmentErrors.ServiceNotFound;
         if (service.Status != Status.Active) return AppointmentErrors.ServiceNotActive;
 
-        var cleanTimeSlot = new DateTime(
-        dto.TimeSlot.Year, dto.TimeSlot.Month, dto.TimeSlot.Day,
-        dto.TimeSlot.Hour, dto.TimeSlot.Minute, 0, dto.TimeSlot.Kind);
-
-        var existingAppointments = await _appointmentRepository.FindByFilterAsync(
-            a => a.DoctorId == dto.DoctorId && a.TimeSlot == cleanTimeSlot,
-            null,
-            cancellationToken);
-
-        if (existingAppointments.Any())
-            return AppointmentErrors.InvalidTimeSlot;
-
-        var appointment = new Appointment
+        return await _appointmentRepository.SaveSchedulingChangeAsync(async () =>
         {
-            Id = Guid.NewGuid(),
-            DoctorId = dto.DoctorId,
-            ServiceId = dto.ServiceId,
-            OfficeId = dto.OfficeId,
-            PatientId = patientId,
-            Date = dto.Date,
-            TimeSlot = cleanTimeSlot
-        };
+            var validation = await ValidateSlotAsync(dto.DoctorId, dto.ServiceId, dto.Date, dto.TimeSlot, null, cancellationToken);
+            if (validation.IsFailure) return validation;
 
-        await _appointmentRepository.AddAsync(appointment, cancellationToken);
-        await _appointmentRepository.SaveChangesAsync(cancellationToken);
+            await _appointmentRepository.AddAsync(new Appointment
+            {
+                Id = Guid.NewGuid(),
+                DoctorId = dto.DoctorId,
+                ServiceId = dto.ServiceId,
+                OfficeId = dto.OfficeId,
+                PatientId = patientId,
+                Date = DateTime.SpecifyKind(dto.Date.Date, DateTimeKind.Utc),
+                TimeSlot = dto.TimeSlot
+            }, cancellationToken);
 
-        return Result.Success();
+            return Result.Success();
+        }, AppointmentErrors.SlotUnavailable, cancellationToken);
     }
 
-    public async Task<Result> ApproveAppointmentAsync(
-            Guid appointmentId,
-            CancellationToken cancellationToken = default)
+    public Task<Result> RescheduleAppointmentAsync(
+        Guid appointmentId, RescheduleAppointmentDTO dto, CancellationToken cancellationToken = default)
     {
-        var appointment = await _appointmentRepository.GetByIdAsync(appointmentId, cancellationToken);
+        return _appointmentRepository.SaveSchedulingChangeAsync(async () =>
+        {
+            var appointment = await _appointmentRepository.GetByIdAsync(appointmentId, cancellationToken);
+            if (appointment == null) return AppointmentErrors.NotFound;
+            if (appointment.IsApproved) return AppointmentErrors.AlreadyApproved;
 
-        if (appointment == null)
-            return AppointmentErrors.NotFound;
+            var doctor = await _doctorRepository.GetByIdAsync(dto.DoctorId, cancellationToken);
+            if (doctor == null) return AppointmentErrors.DoctorNotFound;
+            if (doctor.Status != Status.Active) return AppointmentErrors.DoctorNotActive;
 
-        if (appointment.IsApproved)
-            return AppointmentErrors.AlreadyApproved;
+            var originalDoctor = await _doctorRepository.GetByIdAsync(appointment.DoctorId, cancellationToken);
+            if (originalDoctor != null && !string.Equals(
+                originalDoctor.Specialization, doctor.Specialization, StringComparison.OrdinalIgnoreCase))
+                return AppointmentErrors.DoctorSpecializationMismatch;
 
-        appointment.IsApproved = true;
+            var validation = await ValidateSlotAsync(
+                dto.DoctorId, appointment.ServiceId, dto.Date, dto.TimeSlot, appointment.Id, cancellationToken);
+            if (validation.IsFailure) return validation;
 
-        _appointmentRepository.Update(appointment);
+            appointment.DoctorId = dto.DoctorId;
+            appointment.Date = DateTime.SpecifyKind(dto.Date.Date, DateTimeKind.Utc);
+            appointment.TimeSlot = dto.TimeSlot;
+            _appointmentRepository.Update(appointment);
+            return Result.Success();
+        }, AppointmentErrors.SlotUnavailable, cancellationToken);
+    }
 
-        await _appointmentRepository.SaveChangesAsync(cancellationToken);
+    private async Task<Result> ValidateSlotAsync(
+        Guid doctorId, Guid serviceId, DateTime date, DateTime timeSlot, Guid? excludeId, CancellationToken cancellationToken)
+    {
+        if (date.Year is < 2 or > 9998 || timeSlot.Kind != DateTimeKind.Utc)
+            return AppointmentErrors.InvalidTimeSlot;
 
-        return Result.Success();
+        var localTime = TimeZoneInfo.ConvertTimeFromUtc(timeSlot, _clinicTimeZone);
+        if (date.Date != localTime.Date || localTime.Ticks % TimeSpan.FromMinutes(10).Ticks != 0)
+            return AppointmentErrors.InvalidTimeSlot;
+
+        var slots = await _scheduleService.GetAvailableTimeSlotsAsync(doctorId, serviceId, date, cancellationToken, excludeId);
+        return slots.Contains(localTime.TimeOfDay) ? Result.Success() : AppointmentErrors.SlotUnavailable;
+    }
+
+    public Task<Result> ApproveAppointmentAsync(Guid appointmentId, CancellationToken cancellationToken = default)
+    {
+        return _appointmentRepository.SaveSchedulingChangeAsync(async () =>
+        {
+            var appointment = await _appointmentRepository.GetByIdAsync(appointmentId, cancellationToken);
+            if (appointment == null) return AppointmentErrors.NotFound;
+            if (appointment.IsApproved) return AppointmentErrors.AlreadyApproved;
+
+            appointment.IsApproved = true;
+            _appointmentRepository.Update(appointment);
+            return Result.Success();
+        }, AppointmentErrors.AppointmentChanged, cancellationToken);
     }
 
     public async Task<Result> DeleteAppointmentAsync(
@@ -110,15 +160,19 @@ public class AppointmentManagementService : IAppointmentManagementService
             return AppointmentErrors.NotFound;
 
         _appointmentRepository.Delete(appointment, cancellationToken);
+        await _appointmentRepository.SaveChangesAsync(cancellationToken);
 
         return Result.Success();
     }
 
     public async Task<Result<IEnumerable<ViewAppointmentListDTO>>> GetFilteredAppointmentsAsync(GetAppointmentsFilterDTO filter, CancellationToken cancellationToken = default)
     {
+        var date = filter.Date.HasValue
+            ? DateTime.SpecifyKind(filter.Date.Value.Date, DateTimeKind.Utc)
+            : (DateTime?)null;
         var appointments = await _appointmentRepository.FindByFilterAsync(
             a =>
-                (!filter.Date.HasValue || a.Date.Date == filter.Date.Value.Date) &&
+                (!date.HasValue || a.Date.Date == date.Value) &&
 
                 (string.IsNullOrEmpty(filter.DoctorName) ||
                     a.Doctor.FirstName.Contains(filter.DoctorName) ||
@@ -143,13 +197,7 @@ public class AppointmentManagementService : IAppointmentManagementService
 
         var responseList = appointments.Select(a =>
         {
-            int durationMinutes = a.Service.Category switch
-            {
-                ServiceCategory.Analyses => 10,
-                ServiceCategory.Consultations => 20,
-                ServiceCategory.Diagnostics => 30,
-                _ => 10
-            };
+            int durationMinutes = a.Service.Category.GetDurationMinutes();
 
             return new ViewAppointmentListDTO(
                 a.Id,
@@ -159,7 +207,12 @@ public class AppointmentManagementService : IAppointmentManagementService
                 $"{a.Patient.LastName} {a.Patient.FirstName} {a.Patient.MiddleName}".Trim(),
                 a.Patient.PhoneNumber,
                 a.Service.Name,
-                a.IsApproved
+                a.IsApproved,
+                a.PatientId,
+                a.DoctorId,
+                a.ServiceId,
+                a.OfficeId,
+                a.Date
             );
         });
 

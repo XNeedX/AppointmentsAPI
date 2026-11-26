@@ -1,4 +1,5 @@
-﻿using AppointmentsAPI.Application.Results;
+using System.Security.Claims;
+using AppointmentsAPI.Application.Results;
 using Microsoft.AspNetCore.Mvc;
 using AppointmentsAPI.Presentation.Responses;
 using AppointmentsAPI.Application.Results;
@@ -8,6 +9,8 @@ namespace AppointmentsAPI.Presentation.Controllers;
 [ApiController]
 public abstract class ApiController : ControllerBase
 {
+    protected string? AccountId => User.FindFirstValue(ClaimTypes.NameIdentifier) ?? User.FindFirstValue("sub");
+
     protected IActionResult HandleResult<T>(Result<T> result, string? successMessage = null) =>
         result.IsSuccess
             ? Ok(ApiResponse<T>.Success(result.Value, successMessage))

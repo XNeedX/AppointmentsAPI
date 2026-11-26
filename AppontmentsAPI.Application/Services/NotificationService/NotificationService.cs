@@ -3,11 +3,12 @@ using AppointmentsAPI.Application.DTOs.AppointmentResult;
 using AppointmentsAPI.Application.DTOs.NotificationService;
 using MailKit.Net.Smtp;
 using MailKit.Security;
+using Microsoft.Extensions.Configuration;
 using MimeKit;
 
 namespace AppointmentsAPI.Application.Services.NotificationService;
 
-public class NotificationService : INotificationService
+public class NotificationService(IConfiguration configuration) : INotificationService
 {
     public async Task SendAppointmentResultAsync(SendResultEmailDTO dto, CancellationToken cancellationToken = default)
     {
@@ -24,13 +25,7 @@ public class NotificationService : INotificationService
         bodyBuilder.Attachments.Add(dto.FileName, dto.PdfBytes, new ContentType("application", "pdf"));
         message.Body = bodyBuilder.ToMessageBody();
 
-        using var client = new SmtpClient();
-
-        await client.ConnectAsync("sandbox.smtp.mailtrap.io", 2525, SecureSocketOptions.StartTls, cancellationToken);
-        await client.AuthenticateAsync("MailTrap:Username", "MailTrap:Password", cancellationToken);
-        await client.SendAsync(message, cancellationToken);
-
-        await client.DisconnectAsync(true, cancellationToken);
+        await SendAsync(message, cancellationToken);
     }
 
     public async Task SendReminderNotificationAsync(SendReminderNotificationDTO dto, CancellationToken cancellationToken = default)
@@ -47,14 +42,26 @@ public class NotificationService : INotificationService
 
         message.Body = bodyBuilder.ToMessageBody();
 
+        await SendAsync(message, cancellationToken);
+    }
+
+    private async Task SendAsync(MimeMessage message, CancellationToken cancellationToken)
+    {
+        var host = configuration["Smtp:Host"] ?? "sandbox.smtp.mailtrap.io";
+        var port = configuration.GetValue("Smtp:Port", 2525);
+        var useStartTls = configuration.GetValue("Smtp:UseStartTls", true);
+        var username = configuration["Smtp:Username"] ?? configuration["MailTrap:Username"];
         using var client = new SmtpClient();
 
-        await client.ConnectAsync("sandbox.smtp.mailtrap.io", 2525, SecureSocketOptions.StartTls, cancellationToken);
-        await client.AuthenticateAsync("MailTrap:Username", "MailTrap:Password", cancellationToken);
+        await client.ConnectAsync(host, port, useStartTls ? SecureSocketOptions.StartTls : SecureSocketOptions.None, cancellationToken);
+        if (!string.IsNullOrWhiteSpace(username))
+        {
+            var password = configuration["Smtp:Password"] ?? configuration["MailTrap:Password"]
+                ?? throw new InvalidOperationException("The SMTP password is required when a username is configured.");
+            await client.AuthenticateAsync(username, password, cancellationToken);
+        }
+
         await client.SendAsync(message, cancellationToken);
-
         await client.DisconnectAsync(true, cancellationToken);
-
-        throw new NotImplementedException();
     }
 }

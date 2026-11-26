@@ -1,4 +1,4 @@
-﻿namespace AppointmentsAPI.Application.DTOs.Appointment;
+namespace AppointmentsAPI.Application.DTOs.Appointment;
 
 public record ViewAppointmentListDTO(
     Guid Id,
@@ -8,5 +8,10 @@ public record ViewAppointmentListDTO(
     string PatientFullName,
     string PatientPhoneNumber,
     string ServiceName,
-    bool IsApproved   
+    bool IsApproved,
+    Guid PatientId,
+    Guid DoctorId,
+    Guid ServiceId,
+    Guid OfficeId,
+    DateTime Date
 );

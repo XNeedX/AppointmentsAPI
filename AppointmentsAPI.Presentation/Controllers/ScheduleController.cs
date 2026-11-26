@@ -1,5 +1,6 @@
-﻿using AppointmentsAPI.Application.Abstractions.Schedules;
+using AppointmentsAPI.Application.Abstractions.Schedules;
 using AppointmentsAPI.Presentation.Responses;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace AppointmentsAPI.Presentation.Controllers;
@@ -19,9 +20,14 @@ public class ScheduleController : ApiController
         [FromQuery] Guid doctorId,
         [FromQuery] Guid serviceId,
         [FromQuery] DateTime date,
+        [FromQuery] Guid? excludeAppointmentId,
         CancellationToken cancellationToken)
     {
-        var slots = await _scheduleService.GetAvailableTimeSlotsAsync(doctorId, serviceId, date, cancellationToken);
+        if (excludeAppointmentId.HasValue && !User.IsInRole("Receptionist"))
+            return User.Identity?.IsAuthenticated == true ? Forbid() : Challenge();
+
+        if (date.Year is < 2 or > 9998) return BadRequest();
+        var slots = await _scheduleService.GetAvailableTimeSlotsAsync(doctorId, serviceId, date, cancellationToken, excludeAppointmentId);
         var formattedSlots = slots.Select(s => s.ToString(@"hh\:mm"));
 
         return Ok(ApiResponse<IEnumerable<string>>.Success(formattedSlots));
@@ -33,43 +39,29 @@ public class ScheduleController : ApiController
         [FromQuery] Guid serviceId,
         [FromQuery] DateTime startDate,
         [FromQuery] DateTime endDate,
+        [FromQuery] Guid? excludeAppointmentId,
         CancellationToken cancellationToken)
     {
-        var availableDates = new List<string>();
+        if (excludeAppointmentId.HasValue && !User.IsInRole("Receptionist"))
+            return User.Identity?.IsAuthenticated == true ? Forbid() : Challenge();
 
-        for (var date = startDate.Date; date <= endDate.Date; date = date.AddDays(1))
-        {
-            var utcDate = DateTime.SpecifyKind(date, DateTimeKind.Utc);
-            var slots = await _scheduleService.GetAvailableTimeSlotsAsync(doctorId, serviceId, utcDate, cancellationToken);
+        if (startDate.Year < 2 || endDate.Year > 9998 || endDate.Date < startDate.Date ||
+            (endDate.Date - startDate.Date).TotalDays > 30)
+            return BadRequest();
 
-            if (slots.Any())
-                availableDates.Add(date.ToString("yyyy-MM-dd"));
-        }
-
-        return Ok(ApiResponse<IEnumerable<string>>.Success(availableDates));
+        var availableDates = await _scheduleService.GetAvailableDatesAsync(
+            doctorId, serviceId, startDate, endDate, cancellationToken, excludeAppointmentId);
+        return Ok(ApiResponse<IEnumerable<string>>.Success(
+            availableDates.Select(date => date.ToString("yyyy-MM-dd"))));
     }
 
-    // [Authorize(Roles = "Doctor")] 
-    [HttpGet("doctor/{doctorId:guid}")]
-    public async Task<IActionResult> GetDoctorSchedule(
-        Guid doctorId,
-        [FromQuery] DateTime date,
-        CancellationToken cancellationToken)
+    [HttpGet("me/history")]
+    [Authorize(Roles = "Patient")]
+    public async Task<IActionResult> GetOwnHistory(CancellationToken cancellationToken)
     {
-        if (date == default)
-            date = DateTime.UtcNow.Date;
+        if (string.IsNullOrWhiteSpace(AccountId)) return Forbid();
 
-        var utcDate = DateTime.SpecifyKind(date.Date, DateTimeKind.Utc);
-        var result = await _scheduleService.GetDoctorScheduleAsync(doctorId, utcDate, cancellationToken);
-
-        return HandleResult(result);
+        return HandleResult(await _scheduleService.GetOwnAppointmentHistoryAsync(AccountId, cancellationToken));
     }
 
-    // [Authorize(Roles = "Doctor")]
-    [HttpGet("patient/{patientId:guid}/history")]
-    public async Task<IActionResult> GetPatientHistory(Guid patientId, CancellationToken cancellationToken)
-    {
-        var result = await _scheduleService.GetPatientAppointmentHistoryAsync(patientId, cancellationToken);
-        return HandleResult(result);
-    }
 }

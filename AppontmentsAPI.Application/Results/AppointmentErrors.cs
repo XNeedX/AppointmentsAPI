@@ -1,4 +1,4 @@
-﻿namespace AppointmentsAPI.Application.Results;
+namespace AppointmentsAPI.Application.Results;
 
 public static class AppointmentErrors
 {
@@ -8,6 +8,21 @@ public static class AppointmentErrors
     public static readonly Error InvalidTimeSlot = new(
         "Appointment.InvalidTimeSlot",
         "The selected time slot is invalid.",
+        ErrorType.Validation);
+
+    public static readonly Error SlotUnavailable = new(
+        "Appointment.SlotUnavailable",
+        "The selected time slot is no longer available.",
+        ErrorType.Conflict);
+
+    public static readonly Error AppointmentChanged = new(
+        "Appointment.Changed",
+        "This appointment changed while you were approving it. Please refresh the schedule and try again.",
+        ErrorType.Conflict);
+
+    public static readonly Error DoctorSpecializationMismatch = new(
+        "Appointment.DoctorSpecializationMismatch",
+        "The doctor must have the same specialization as the original doctor.",
         ErrorType.Validation);
 
     public static readonly Error DoctorNotFound = new(

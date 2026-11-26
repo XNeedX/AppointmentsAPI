@@ -43,6 +43,7 @@ public class DoctorSyncService : IDoctorSyncService
             doctor.LastName = dto.LastName;
             doctor.MiddleName = dto.MiddleName;
             doctor.Specialization = dto.Specialization;
+            doctor.Status = dto.Status ?? doctor.Status;
 
             await _doctorRepository.SaveChangesAsync();
         }

@@ -1,5 +1,5 @@
-﻿using AppointmentsAPI.Application.Abstractions.AppointmentResults;
-using AppointmentsAPI.Application.Abstractions.NotificationService;
+using Microsoft.Extensions.Logging;
+using AppointmentsAPI.Application.Abstractions.AppointmentResults;
 using AppointmentsAPI.Application.Abstractions.Repositories;
 using AppointmentsAPI.Application.Configurations;
 using AppointmentsAPI.Application.DTOs.AppointmentResult;
@@ -9,7 +9,6 @@ using AppointmentsAPI.Application.Results;
 using AppointmentsAPI.Domain.Models;
 using InnoClinic.Contracts.Events.Appointments;
 using MassTransit;
-using MassTransit.Configuration;
 using Microsoft.Extensions.Options;
 
 namespace AppointmentsAPI.Application.Services.AppointmentResults;
@@ -21,8 +20,7 @@ public class AppointmentResultService : IAppointmentResultService
     private readonly IPDFGeneratorService _pdfGeneratorService;
     private readonly IPublishEndpoint _publishEndpoint;
     private readonly InnoClinicOptions _innoClinicOptions;
-    private readonly INotificationService _notificationService;
-    private readonly IMessageScheduler _messageScheduler;
+    private readonly ILogger<AppointmentResultService> _logger;
 
     public AppointmentResultService(
         IAppointmentRepository appointmentRepository,
@@ -30,16 +28,14 @@ public class AppointmentResultService : IAppointmentResultService
         IPDFGeneratorService pdfGeneratorService,
         IPublishEndpoint publishEndpoint,
         IOptions<InnoClinicOptions> innoClinicOptions,
-        INotificationService notificationService,
-        IMessageScheduler messageScheduler)
+        ILogger<AppointmentResultService> logger)
     {
         _appointmentRepository = appointmentRepository;
         _appointmentResultRepository = resultRepository;
         _pdfGeneratorService = pdfGeneratorService;
         _publishEndpoint = publishEndpoint;
-        _notificationService = notificationService;
         _innoClinicOptions = innoClinicOptions.Value;
-        _messageScheduler = messageScheduler;
+        _logger = logger;
     }
 
     public async Task<Result> CreateAppointmentResultAsync(
@@ -73,61 +69,62 @@ public class AppointmentResultService : IAppointmentResultService
             Recommendations = dto.Recommendations
         };
 
-        await _appointmentResultRepository.AddAsync(result, cancellationToken);
-        await _appointmentResultRepository.SaveChangesAsync(cancellationToken);
-
-        var clinicTimeZone = TimeZoneInfo.FindSystemTimeZoneById(_innoClinicOptions.TimeZoneId);
-
-        var localTimeSlot = TimeZoneInfo.ConvertTimeFromUtc(appointment.TimeSlot, clinicTimeZone);
-
-        var pdfModel = new AppointmentResultPDF
+        var saved = await _appointmentRepository.SaveSchedulingChangeAsync(async () =>
         {
-            PatientFullName = $"{appointment.Patient.LastName} {appointment.Patient.FirstName}",
-            DoctorFullName = $"{appointment.Doctor.LastName} {appointment.Doctor.FirstName}",
-            Specialization = appointment.Doctor.Specialization,
-            Date = localTimeSlot,
-            Complaints = dto.Complaints,
-            Conclusion = dto.Conclusion,
-            Recommendations = dto.Recommendations
-        };
+            var existing = (await _appointmentRepository.FindByFilterAsync(
+                a => a.Id == appointmentId, null, cancellationToken, a => a.Result)).FirstOrDefault();
+            if (existing is null) return AppointmentErrors.NotFound;
+            if (!existing.IsApproved) return AppointmentErrors.NotApproved;
+            if (existing.Result is not null) return AppointmentErrors.ResultAlreadyExists;
 
-        var pdfBytes = _pdfGeneratorService.GenerateAppointmentResultPdf(pdfModel);
+            await _appointmentResultRepository.AddAsync(result, cancellationToken);
+            return Result.Success();
+        }, AppointmentErrors.ResultAlreadyExists, cancellationToken);
+        if (saved.IsFailure) return saved;
 
-        await _publishEndpoint.Publish<ISaveAppointmentResultDocumentEvent>(new
+        try
         {
-            AppointmentId = appointmentId,
-            PdfBytes = pdfBytes,
-            ContentType = "application/pdf"
-        }, cancellationToken);
+            var clinicTimeZone = TimeZoneInfo.FindSystemTimeZoneById(_innoClinicOptions.TimeZoneId);
 
-        if(!string.IsNullOrEmpty(appointment.Patient.Email))
-        {
-            var fileName = $"AppointmentResult_{appointment.Date:yyyyMMdd}.pdf";
-            var patientName = $"{appointment.Patient.FirstName} {appointment.Patient.LastName}";
+            var localTimeSlot = TimeZoneInfo.ConvertTimeFromUtc(appointment.TimeSlot, clinicTimeZone);
 
-            await _publishEndpoint.Publish(new SendAppointmentResultEmailEvent(
-                appointment.Patient.Email,
-                patientName,
-                pdfBytes,
-                fileName
-            ));
+            var pdfModel = new AppointmentResultPDF
+            {
+                PatientFullName = $"{appointment.Patient.LastName} {appointment.Patient.FirstName}",
+                DoctorFullName = $"{appointment.Doctor.LastName} {appointment.Doctor.FirstName}",
+                Specialization = appointment.Doctor.Specialization,
+                Date = localTimeSlot,
+                Complaints = dto.Complaints,
+                Conclusion = dto.Conclusion,
+                Recommendations = dto.Recommendations
+            };
+
+            var pdfBytes = _pdfGeneratorService.GenerateAppointmentResultPdf(pdfModel);
+
+            await _publishEndpoint.Publish<ISaveAppointmentResultDocumentEvent>(new
+            {
+                AppointmentId = appointmentId,
+                PdfBytes = pdfBytes,
+                ContentType = "application/pdf"
+            }, cancellationToken);
+
+            if(!string.IsNullOrEmpty(appointment.Patient.Email))
+            {
+                var fileName = $"AppointmentResult_{appointment.Date:yyyyMMdd}.pdf";
+                var patientName = $"{appointment.Patient.FirstName} {appointment.Patient.LastName}";
+
+                await _publishEndpoint.Publish(new SendAppointmentResultEmailEvent(
+                    appointment.Patient.Email,
+                    patientName,
+                    pdfBytes,
+                    fileName
+                ), cancellationToken);
+            }
         }
-
-        DateTime sendTime = appointment.TimeSlot.AddDays(-1);
-        DateTime sendTimeUtc = TimeZoneInfo.ConvertTimeToUtc(sendTime);
-
-        await _messageScheduler.ScheduleSend(
-            new Uri("queue:send-appointment-reminder"),
-            sendTimeUtc,
-            new SendAppointmentReminderEvent(
-                appointment.Patient.Email,
-                $"{appointment.Patient.FirstName} {appointment.Patient.LastName}",
-                appointment.Service.Name,
-                $"{appointment.Doctor.FirstName} {appointment.Doctor.LastName}", 
-                appointment.Date, 
-                appointment.TimeSlot
-            )
-        ); 
+        catch (Exception error) when (error is not OperationCanceledException)
+        {
+            _logger.LogError(error, "Could not distribute the saved result for appointment {AppointmentId}", appointmentId);
+        }
 
         return Result.Success();
     }
@@ -153,10 +150,11 @@ public class AppointmentResultService : IAppointmentResultService
 
     public async Task<Result<ViewAppointmentResultDTO>> ViewAppointmentResultAsync(
        Guid appointmentId,
-       CancellationToken cancellationToken = default)
+       CancellationToken cancellationToken = default,
+       string? patientAccountId = null)
     {
         var appointments = await _appointmentRepository.FindByFilterAsync(
-            a => a.Id == appointmentId,
+            a => a.Id == appointmentId && (patientAccountId == null || a.Patient.AccountId == patientAccountId),
             null,
             cancellationToken,
             a => a.Patient,

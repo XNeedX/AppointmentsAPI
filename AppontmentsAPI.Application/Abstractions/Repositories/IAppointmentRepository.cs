@@ -1,10 +1,12 @@
-﻿using AppointmentsAPI.Domain.Models;
+using AppointmentsAPI.Application.Results;
+using AppointmentsAPI.Domain.Models;
 using System.Linq.Expressions;
 
 namespace AppointmentsAPI.Application.Abstractions.Repositories;
 
 public interface IAppointmentRepository
 {
+    Task<Result> SaveSchedulingChangeAsync(Func<Task<Result>> change, Error concurrencyError, CancellationToken cancellationToken);
     Task<Appointment> GetByIdAsync(Guid id, CancellationToken cancellationToken = default);
     Task AddAsync(Appointment appointment, CancellationToken cancellationToken = default);
     Task<IEnumerable<Appointment>> GetAllAsync(CancellationToken cancellationToken = default);

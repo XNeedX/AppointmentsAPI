@@ -1,6 +1,7 @@
 ﻿using AppointmentsAPI.Application.Abstractions.Sync;
 using AppointmentsAPI.Application.DTOs;
 using AppointmentsAPI.Application.DTOs.Sync;
+using AppointmentsAPI.Domain.Enums;
 using InnoClinic.Contracts.Events.Profiles;
 using MassTransit;
 
@@ -25,7 +26,8 @@ public class DoctorUpdatedConsumer : IConsumer<IDoctorUpdatedEvent>
             msg.FirstName,
             msg.LastName,
             msg.MiddleName,
-            msg.Specialization
+            msg.Specialization,
+            msg.Status == "At work" ? Status.Active : Status.Inactive
         );
 
         await _doctorSyncService.UpdateDoctorAsync(dto);

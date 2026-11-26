@@ -1,5 +1,5 @@
-﻿using AppointmentsAPI.Application.Abstractions.AppointmentResults;
-using AppointmentsAPI.Application.DTOs.AppointmentResult;
+using AppointmentsAPI.Application.Abstractions.AppointmentResults;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace AppointmentsAPI.Presentation.Controllers;
@@ -14,35 +14,13 @@ public class AppointmentsResultController : ApiController
         _resultService = resultService;
     }
 
-    // [Authorize(Roles = "Doctor")] 
-    [HttpPost("{appointmentId:guid}/results")]
-    public async Task<IActionResult> CreateResult(
-        Guid appointmentId,
-        [FromBody] CreateAppointmentResultDTO dto,
-        CancellationToken cancellationToken)
+    [HttpGet("{appointmentId:guid}/my-result")]
+    [Authorize(Roles = "Patient")]
+    public async Task<IActionResult> GetOwnAppointmentResult(Guid appointmentId, CancellationToken cancellationToken)
     {
-        var result = await _resultService.CreateAppointmentResultAsync(appointmentId, dto, cancellationToken);
-        return HandleResult(result, "Result has been created successfully");
+        if (string.IsNullOrWhiteSpace(AccountId)) return Forbid();
+
+        return HandleResult(await _resultService.ViewAppointmentResultAsync(appointmentId, cancellationToken, AccountId));
     }
 
-    // [Authorize(Roles = "Doctor")] 
-    [HttpGet("{appointmentId:guid}/results")]
-    public async Task<IActionResult> GetAppointmentResult(
-        Guid appointmentId,
-        CancellationToken cancellationToken)
-    {
-        var result = await _resultService.ViewAppointmentResultAsync(appointmentId, cancellationToken);
-        return HandleResult(result);
-    }
-
-    // [Authorize(Roles = "Doctor")] 
-    [HttpPut("results/{resultId:guid}")]
-    public async Task<IActionResult> UpdateResult(
-        Guid resultId,
-        [FromBody] UpdateAppointmentResultDTO dto,
-        CancellationToken cancellationToken)
-    {
-        var result = await _resultService.UpdateAppointmentResultAsync(resultId, dto, cancellationToken);
-        return HandleResult(result, "Result has been updated successfully");
-    }
 }

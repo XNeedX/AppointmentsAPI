@@ -1,4 +1,4 @@
-﻿using AppointmentsAPI.Application.Abstractions.Repositories;
+using AppointmentsAPI.Application.Abstractions.Repositories;
 using AppointmentsAPI.Application.Abstractions.Sync;
 using AppointmentsAPI.Application.DTOs.Sync;
 using AppointmentsAPI.Domain.Models;
@@ -22,7 +22,8 @@ public class ServiceSyncService : IServiceSyncService
         var service = new Service
         {
             Id = dto.Id,
-            Name = dto.Name
+            Name = dto.Name,
+            Category = dto.Category
         };
 
         await _serviceRepository.AddAsync(service);
@@ -36,6 +37,7 @@ public class ServiceSyncService : IServiceSyncService
         if (service != null)
         {
             service.Name = dto.Name;
+            service.Category = dto.Category;
 
             await _serviceRepository.SaveChangesAsync();
         }
